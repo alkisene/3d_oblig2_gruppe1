@@ -3,11 +3,30 @@
 <head>
     <meta charset="utf-8">
     <title>3D Oblig 2</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <style>
-        body { margin: 0; }
+        body {
+            background-color: #bfd1e5;
+            color: #61443e;
+        }
+        a {
+            color: #a06851;
+        }
     </style>
 </head>
 <body>
+<div id="container"></div>
+<div id="info"><a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - webgl terrain raycasting demo</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "../build/three.module.js",
+            "three/addons/": "./jsm/"
+        }
+    }
+</script>
 <script type="module" src="/js/main.js"></script>
 </body>
 </html>
