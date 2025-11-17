@@ -10,17 +10,13 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { ImprovedNoise } from 'three/addons/math/ImprovedNoise.js';
+import {EXRLoader} from "three/addons";
 
 let container, stats;
 
 let camera, controls, scene, renderer;
 
-let mesh, texture;
-
-const worldWidth = 512, worldDepth = 256,
-    worldHalfWidth = worldWidth / 2, worldHalfDepth = worldDepth / 2;
-
+let mesh;
 let helper;
 
 const raycaster = new THREE.Raycaster();
@@ -30,71 +26,144 @@ init();
 
 function init() {
 
-    container = document.getElementById( 'container' );
+    container = document.getElementById('container');
     container.innerHTML = '';
 
-    renderer = new THREE.WebGLRenderer( { antialias: true } );
-    renderer.setPixelRatio( window.devicePixelRatio );
-    renderer.setSize( window.innerWidth, window.innerHeight );
-    renderer.setAnimationLoop( animate );
-    container.appendChild( renderer.domElement );
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setAnimationLoop(animate);
+    container.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color( 0xbfd1e5 );
+    scene.background = new THREE.Color(0xbfd1e5);
 
-    camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 10, 20000 );
-
-    controls = new OrbitControls( camera, renderer.domElement );
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
+    controls = new OrbitControls(camera, renderer.domElement);
     controls.minDistance = 1000;
     controls.maxDistance = 10000;
     controls.maxPolarAngle = Math.PI / 2;
 
-    //
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
 
-    const data = generateHeight( worldWidth, worldDepth );
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(3000, 5000, 2000);
+    scene.add(directionalLight);
 
-    controls.target.y = data[ worldHalfWidth + worldHalfDepth * worldWidth ] + 500;
-    camera.position.y = controls.target.y + 2000;
-    camera.position.x = 2000;
-    controls.update();
+    const exrLoader = new EXRLoader();
+    const heightMapPath = 'asset/HeightMap/height_map.exr';
+    const diffuseMapPath = 'asset/DiffuseMap/diffuse_map.exr';
 
-    const geometry = new THREE.PlaneGeometry( 7500, 7500, worldWidth - 1, worldDepth - 1 );
-    geometry.rotateX( - Math.PI / 2 );
+    exrLoader.load(heightMapPath, (heightTex) => {
 
-    const vertices = geometry.attributes.position.array;
+        heightTex.minFilter = THREE.LinearFilter;
+        heightTex.magFilter = THREE.LinearFilter;
 
-    for ( let i = 0, j = 0, l = vertices.length; i < l; i ++, j += 3 ) {
+        const img = heightTex.image;
+        const srcWidth = img.width;
+        const srcHeight = img.height;
 
-        vertices[ j + 1 ] = data[ i ] * 10;
+        const meshSegmentsX = 512;
+        const meshSegmentsY = 512;
 
-    }
+        const width = meshSegmentsX + 1;
+        const height = meshSegmentsY + 1;
 
-    //
+        const pixelData = img.data;
 
-    texture = new THREE.CanvasTexture( generateTexture( data, worldWidth, worldDepth ) );
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.colorSpace = THREE.SRGBColorSpace;
+        function sampleHeight(u, v) {
+            const x = Math.min(srcWidth - 1, Math.max(0, Math.floor(u * (srcWidth - 1))));
+            const y = Math.min(srcHeight - 1, Math.max(0, Math.floor(v * (srcHeight - 1))));
+            const idx = (y * srcWidth + x) * 4;
+            return pixelData[idx];
+        }
 
-    mesh = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { map: texture } ) );
-    scene.add( mesh );
+        const heightData = new Float32Array(width * height);
+        for (let y = 0; y < height; y++) {
+            const v = y / (height - 1);
+            for (let x = 0; x < width; x++) {
+                const u = x / (width - 1);
+                heightData[y * width + x] = sampleHeight(u, v);
+            }
+        }
 
-    const geometryHelper = new THREE.ConeGeometry( 20, 100, 3 );
-    geometryHelper.translate( 0, 50, 0 );
-    geometryHelper.rotateX( Math.PI / 2 );
-    helper = new THREE.Mesh( geometryHelper, new THREE.MeshNormalMaterial() );
-    scene.add( helper );
+        // Normalize the height data
+        let minHeight = Infinity;
+        let maxHeight = -Infinity;
+        for (let i = 0; i < heightData.length; i++) {
+            minHeight = Math.min(minHeight, heightData[i]);
+            maxHeight = Math.max(maxHeight, heightData[i]);
+        }
+        const range = maxHeight - minHeight;
 
-    container.addEventListener( 'pointermove', onPointerMove );
+        const outScale = 0.5;   // scales normalized heights (try 0.1 .. 1.0)
+        const outOffset = 0;   // shifts baseline (keep 0.0 for no offset)
+
+        const invRange = range !== 0 ? 1 / range : 0;
+
+        for (let i = 0; i < heightData.length; i++) {
+            const n = (heightData[i] - minHeight) * invRange; // normalize to 0..1
+            heightData[i] = n * outScale + outOffset;         // apply scaling and offset
+        }
+
+        const terrainSize = 7500;
+        const geometry = new THREE.PlaneGeometry(
+            terrainSize,
+            terrainSize,
+            meshSegmentsX,
+            meshSegmentsY
+        );
+        geometry.rotateX(-Math.PI / 2);
+
+        const vertices = geometry.attributes.position.array;
+        const heightScale = 1000;
+
+        for (let i = 0, j = 0, l = heightData.length; i < l; i++, j += 3) {
+            vertices[j + 1] = heightData[i] * heightScale;
+        }
+        geometry.computeVertexNormals();
+
+        // Load EXR diffuse texture
+        exrLoader.load(diffuseMapPath, (diffuseTexture) => {
+            diffuseTexture.wrapS = THREE.ClampToEdgeWrapping;
+            diffuseTexture.wrapT = THREE.ClampToEdgeWrapping;
+            diffuseTexture.colorSpace = THREE.SRGBColorSpace;
+            diffuseTexture.minFilter = THREE.LinearFilter;
+            diffuseTexture.magFilter = THREE.LinearFilter;
+
+            mesh = new THREE.Mesh(
+                geometry,
+                new THREE.MeshStandardMaterial({ map: diffuseTexture })
+            );
+            scene.add(mesh);
+
+            const centerIndex =
+                (Math.floor(height / 2) * width) + Math.floor(width / 2);
+            controls.target.set(
+                0,
+                heightData[centerIndex] * heightScale + 500,
+                0
+            );
+            camera.position.set(2000, controls.target.y + 2000, 0);
+            controls.update();
+        });
+    });
+
+    const geometryHelper = new THREE.ConeGeometry(20, 100, 3);
+    geometryHelper.translate(0, 50, 0);
+    geometryHelper.rotateX(Math.PI / 2);
+    helper = new THREE.Mesh(geometryHelper, new THREE.MeshNormalMaterial());
+    scene.add(helper);
+
+    container.addEventListener('pointermove', onPointerMove);
 
     stats = new Stats();
-    container.appendChild( stats.dom );
+    container.appendChild(stats.dom);
 
-    //
-
-    window.addEventListener( 'resize', onWindowResize );
-
+    window.addEventListener('resize', onWindowResize);
 }
+
 
 function onWindowResize() {
 
@@ -105,99 +174,6 @@ function onWindowResize() {
 
 }
 
-function generateHeight( width, height ) {
-
-    const size = width * height, data = new Uint8Array( size ),
-        perlin = new ImprovedNoise(), z = Math.random() * 100;
-
-    let quality = 1;
-
-    for ( let j = 0; j < 4; j ++ ) {
-
-        for ( let i = 0; i < size; i ++ ) {
-
-            const x = i % width, y = ~ ~ ( i / width );
-            data[ i ] += Math.abs( perlin.noise( x / quality, y / quality, z ) * quality * 1.75 );
-
-        }
-
-        quality *= 5;
-
-    }
-
-    return data;
-
-}
-
-function generateTexture( data, width, height ) {
-
-    // bake lighting into texture
-
-    let context, image, imageData, shade;
-
-    const vector3 = new THREE.Vector3( 0, 0, 0 );
-
-    const sun = new THREE.Vector3( 1, 1, 1 );
-    sun.normalize();
-
-    const canvas = document.createElement( 'canvas' );
-    canvas.width = width;
-    canvas.height = height;
-
-    context = canvas.getContext( '2d' );
-    context.fillStyle = '#000';
-    context.fillRect( 0, 0, width, height );
-
-    image = context.getImageData( 0, 0, canvas.width, canvas.height );
-    imageData = image.data;
-
-    for ( let i = 0, j = 0, l = imageData.length; i < l; i += 4, j ++ ) {
-
-        vector3.x = data[ j - 2 ] - data[ j + 2 ];
-        vector3.y = 2;
-        vector3.z = data[ j - width * 2 ] - data[ j + width * 2 ];
-        vector3.normalize();
-
-        shade = vector3.dot( sun );
-
-        imageData[ i ] = ( 96 + shade * 128 ) * ( 0.5 + data[ j ] * 0.007 );
-        imageData[ i + 1 ] = ( 32 + shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
-        imageData[ i + 2 ] = ( shade * 96 ) * ( 0.5 + data[ j ] * 0.007 );
-
-    }
-
-    context.putImageData( image, 0, 0 );
-
-    // Scaled 4x
-
-    const canvasScaled = document.createElement( 'canvas' );
-    canvasScaled.width = width * 4;
-    canvasScaled.height = height * 4;
-
-    context = canvasScaled.getContext( '2d' );
-    context.scale( 4, 4 );
-    context.drawImage( canvas, 0, 0 );
-
-    image = context.getImageData( 0, 0, canvasScaled.width, canvasScaled.height );
-    imageData = image.data;
-
-    for ( let i = 0, l = imageData.length; i < l; i += 4 ) {
-
-        const v = ~ ~ ( Math.random() * 5 );
-
-        imageData[ i ] += v;
-        imageData[ i + 1 ] += v;
-        imageData[ i + 2 ] += v;
-
-    }
-
-    context.putImageData( image, 0, 0 );
-
-    return canvasScaled;
-
-}
-
-//
 
 function animate() {
 
@@ -212,25 +188,22 @@ function render() {
 
 }
 
-function onPointerMove( event ) {
 
-    pointer.x = ( event.clientX / renderer.domElement.clientWidth ) * 2 - 1;
-    pointer.y = - ( event.clientY / renderer.domElement.clientHeight ) * 2 + 1;
-    raycaster.setFromCamera( pointer, camera );
 
-    // See if the ray from the camera into the world hits one of our meshes
-    const intersects = raycaster.intersectObject( mesh );
+function onPointerMove(event) {
+    if (!mesh) return; // don't run until mesh is loaded
 
-    // Toggle rotation bool for meshes that we clicked
-    if ( intersects.length > 0 ) {
+    pointer.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
+    pointer.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
 
-        helper.position.set( 0, 0, 0 );
-        helper.lookAt( intersects[ 0 ].face.normal );
+    const intersects = raycaster.intersectObject(mesh);
 
-        helper.position.copy( intersects[ 0 ].point );
-
+    if (intersects.length > 0) {
+        helper.position.set(0, 0, 0);
+        helper.lookAt(intersects[0].face.normal);
+        helper.position.copy(intersects[0].point);
     }
-
 }
 
 
