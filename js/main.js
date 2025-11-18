@@ -7,9 +7,10 @@ import * as THREE from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
 
-import {EXRLoader, Water} from "three/addons";
+import {Water} from "three/addons/objects/Water.js";
 import {initRaycast} from "./raycaster.js";
 import {initCameraControls} from "./cameraControls.js";
+import {loadAssets} from "./loaders.js";
 
 let container, stats;
 
@@ -22,9 +23,9 @@ let mesh;
 let helper;
 let sun, directionalLight, water;
 let raycastHandler;
-init();
+init().catch(err => console.error(err));
 
-function init() {
+async function init() {
 
     container = document.getElementById('container');
     container.innerHTML = '';
@@ -36,13 +37,23 @@ function init() {
 
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setAnimationLoop(animate);
     container.appendChild(renderer.domElement);
 
+    const {
+        aagotnesHeightMap,
+        diffuseMap,
+        normalMap,
+        roughnessMap,
+        specularMap,
+        waterNormalMap,
+        sunTexture
+    } = await loadAssets(renderer);
+    
+    ({camera, controls} = initCameraControls(renderer.domElement));
+
+    renderer.setAnimationLoop(animate);
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0xbfd1e5);
-
-    ({camera, controls} = initCameraControls(renderer.domElement));
 
     //const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     //scene.add(ambientLight);
@@ -51,11 +62,9 @@ function init() {
     directionalLight.position.set(5000, 5000, 2000);
     scene.add(directionalLight);
 
-    const textureLoader = new THREE.TextureLoader();
-
     const sunGeometry = new THREE.SphereGeometry(100, 32, 32);
     const sunMaterial = new THREE.MeshBasicMaterial({
-        map: textureLoader.load('asset/DiffuseMap/texture_sun.jpg')
+        map: sunTexture,
     });
     sun = new THREE.Mesh(sunGeometry, sunMaterial);
     sun.position.set(3000, 5000, 2000);
@@ -63,17 +72,6 @@ function init() {
 
     directionalLight.position.copy(sun.position);
 
-    const exrLoader = new EXRLoader()
-    const AagotnesHeightMap = textureLoader.load('asset/HeightMap/aagotnesHeightMap.png');
-    const diffuseMap = textureLoader.load('asset/DiffuseMap/coast_sand_rocks_02_diff_4k.jpg');
-    const normalMap = exrLoader.load('asset/NormalMap/rocky_terrain_02_nor_gl_1k.exr');
-    const roughnessMap = exrLoader.load('asset/RoughnessMap/rocky_terrain_02_rough_1k.exr');
-    const specularMap = textureLoader.load('asset/SpecularMap/rocky_terrain_02_spec_1k.png');
-
-    diffuseMap.wrapS = THREE.RepeatWrapping;
-    diffuseMap.wrapT = THREE.RepeatWrapping;
-    diffuseMap.repeat.set(4, 4);
-    diffuseMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
     lod = new THREE.LOD();
     const displaceMentScale = 400;
@@ -84,7 +82,7 @@ function init() {
 
 
     const highResMesh = new THREE.Mesh(highResGeometry, new THREE.MeshStandardMaterial({
-        displacementMap: AagotnesHeightMap,
+        displacementMap: aagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
         normalMap: normalMap,
@@ -98,7 +96,7 @@ function init() {
     const medResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth / 2 - 1, worldDepth / 2 - 1);
     medResGeometry.rotateX(-Math.PI / 2);
     const medResMesh = new THREE.Mesh(medResGeometry, new THREE.MeshStandardMaterial({
-        displacementMap: AagotnesHeightMap,
+        displacementMap: aagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
         metalnessMap: specularMap,
@@ -112,7 +110,7 @@ function init() {
     const lowResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth / 4 - 1, worldDepth / 4 - 1);
     lowResGeometry.rotateX(-Math.PI / 2);
     const lowResMesh = new THREE.Mesh(lowResGeometry, new THREE.MeshStandardMaterial({
-        displacementMap: AagotnesHeightMap,
+        displacementMap: aagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
         metalnessMap: specularMap,
@@ -128,18 +126,13 @@ function init() {
 
     scene.add(lod);
 
-    const waterGeomtry = new THREE.PlaneGeometry(10000, 10000);
-
-    const waterNormals = textureLoader.load('asset/NormalMap/Water_1_M_Normal.jpg');
-    waterNormals.wrapS = THREE.RepeatWrapping;
-    waterNormals.wrapT = THREE.RepeatWrapping;
-
+    const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
     const sundirection = new THREE.Vector3(3000, 5000, 2000).normalize();
 
-    water = new Water(waterGeomtry, {
+    water = new Water(waterGeometry, {
         textureHeight: worldDepth,
         textureWidth: worldWidth,
-        waterNormals: waterNormals,
+        waterNormals: waterNormalMap,
         sunDirection: sundirection,
         sunColor: 0xffffff,
         waterColor: 0x001e0f,
