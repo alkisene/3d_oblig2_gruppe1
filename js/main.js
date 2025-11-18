@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EXRLoader} from "three/addons";
+import {EXRLoader, Water} from "three/addons";
 
 let container, stats;
 
@@ -105,6 +105,27 @@ function init() {
     lod.addLevel(lowResMesh, 5000);    // 5000+ units
 
     scene.add(lod);
+
+    const waterGeomtry = new THREE.PlaneGeometry(10000,10000);
+
+    const waterNormals = textureLoader.load('asset/NormalMap/Water_1_M_Normal.jpg');
+    waterNormals.wrapS = THREE.RepeatWrapping;
+    waterNormals.wrapT = THREE.RepeatWrapping;
+
+    const water = new Water(waterGeomtry, {
+        textureHeight : worldDepth,
+        textureWidth: worldWidth,
+        waterNormals:waterNormals,
+        sunDirection: new THREE.Vector3(0.3,0.8,0.2),
+        sunColor:0xffffff,
+        waterColor : 0x001e0f,
+        distortionScale : 3.7,
+        fog : scene.fog !== undefined
+    })
+    water.rotateX(-Math.PI / 2);
+    water.position.y = 0;
+    scene.add(water);
+
 
     mesh = highResMesh;
 
