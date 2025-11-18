@@ -9,6 +9,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {EXRLoader, Water} from "three/addons";
+import{initRaycast} from "./raycaster.js";
 
 let container, stats;
 
@@ -20,10 +21,7 @@ let worldDepth = 256;
 let mesh;
 let helper;
 let sun, directionalLight, water;
-
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-
+let raycastHandler;
 init();
 
 function init() {
@@ -165,8 +163,7 @@ function init() {
     helper = new THREE.Mesh(geometryHelper, new THREE.MeshNormalMaterial());
     scene.add(helper);
 
-    container.addEventListener('pointermove', onPointerMove);
-
+    raycastHandler = initRaycast({ camera, renderer, lod, helper, container });
     stats = new Stats();
     container.appendChild(stats.dom);
 
@@ -206,41 +203,5 @@ function render() {
     renderer.render( scene, camera );
 
 }
-
-
-let lastRaycastTime = 0;
-const raycastInterval = 33; // ~30fps for raycasting
-
-function onPointerMove(event) {
-    if (!lod) return;
-
-    // Update pointer position immediately (smooth cursor tracking)
-    pointer.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
-    pointer.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
-
-    // Throttle expensive raycasting
-    const now = performance.now();
-    if (now - lastRaycastTime < raycastInterval) return;
-    lastRaycastTime = now;
-
-    raycaster.setFromCamera(pointer, camera);
-
-    lod.update(camera);
-    const currentLevelIndex = lod.getCurrentLevel();
-
-    if (currentLevelIndex === -1) return;
-
-    const currentMesh = lod.children[currentLevelIndex];
-    const intersects = raycaster.intersectObject(currentMesh);
-
-    if (intersects.length > 0) {
-        helper.position.set(0, 0, 0);
-        helper.lookAt(intersects[0].face.normal);
-        helper.position.copy(intersects[0].point);
-    }
-}
-
-
-
 
 
