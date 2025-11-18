@@ -50,8 +50,8 @@ function init() {
     controls.maxDistance = 10000;
     controls.maxPolarAngle = Math.PI / 2;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-    scene.add(ambientLight);
+    //const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+    //scene.add(ambientLight);
 
     directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5000, 5000, 2000);
@@ -176,7 +176,7 @@ function onWindowResize() {
 function animate() {
 
 
-    const time = Date.now() * 0.0001;
+    const time = Date.now() * 0.00001;
     sun.position.x = Math.cos(time) * 5000;
     sun.position.y = Math.sin(time) * 3000 + 2000;
     sun.position.z = 2000;
@@ -191,7 +191,7 @@ function animate() {
 
 function render() {
 
-    water.material.uniforms['time'].value += 10 / 60.0;
+    water.material.uniforms['time'].value += 1 / 60.0; // fart på vatnet
     renderer.render( scene, camera );
 
 }
