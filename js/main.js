@@ -7,9 +7,9 @@ import * as THREE from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
 
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {EXRLoader, Water} from "three/addons";
-import{initRaycast} from "./raycaster.js";
+import {initRaycast} from "./raycaster.js";
+import {initCameraControls} from "./cameraControls.js";
 
 let container, stats;
 
@@ -31,7 +31,7 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,
-        powerPreference:'high-performance',
+        powerPreference: 'high-performance',
     });
 
     renderer.setPixelRatio(window.devicePixelRatio);
@@ -42,11 +42,7 @@ function init() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0xbfd1e5);
 
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.minDistance = 1000;
-    controls.maxDistance = 10000;
-    controls.maxPolarAngle = Math.PI / 2;
+    ({camera, controls} = initCameraControls(renderer.domElement));
 
     //const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     //scene.add(ambientLight);
@@ -57,12 +53,12 @@ function init() {
 
     const textureLoader = new THREE.TextureLoader();
 
-    const sunGeometry = new THREE.SphereGeometry(100,32, 32);
+    const sunGeometry = new THREE.SphereGeometry(100, 32, 32);
     const sunMaterial = new THREE.MeshBasicMaterial({
-        map:textureLoader.load('asset/DiffuseMap/texture_sun.jpg')
+        map: textureLoader.load('asset/DiffuseMap/texture_sun.jpg')
     });
     sun = new THREE.Mesh(sunGeometry, sunMaterial);
-    sun.position.set(3000,5000,2000);
+    sun.position.set(3000, 5000, 2000);
     scene.add(sun);
 
     directionalLight.position.copy(sun.position);
@@ -76,7 +72,7 @@ function init() {
 
     diffuseMap.wrapS = THREE.RepeatWrapping;
     diffuseMap.wrapT = THREE.RepeatWrapping;
-    diffuseMap.repeat.set(4,4);
+    diffuseMap.repeat.set(4, 4);
     diffuseMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
     lod = new THREE.LOD();
@@ -91,10 +87,10 @@ function init() {
         displacementMap: AagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
-        normalMap : normalMap,
-        roughnessMap : normalMap,
-        metalnessMap : specularMap,
-        metalness : 0.1,
+        normalMap: normalMap,
+        roughnessMap: normalMap,
+        metalnessMap: specularMap,
+        metalness: 0.1,
         map: diffuseMap
     }));
 
@@ -107,8 +103,8 @@ function init() {
         displacementBias: displaceMentBias,
         metalnessMap: specularMap,
         metalness: 0.1,
-        roughnessMap : roughnessMap,
-        normalMap : normalMap,
+        roughnessMap: roughnessMap,
+        normalMap: normalMap,
         map: diffuseMap
     }));
 
@@ -119,10 +115,10 @@ function init() {
         displacementMap: AagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
-        metalnessMap : specularMap,
+        metalnessMap: specularMap,
         metalness: 0.1,
-        roughnessMap : roughnessMap,
-        normalMap : normalMap,
+        roughnessMap: roughnessMap,
+        normalMap: normalMap,
         map: diffuseMap
     }));
 
@@ -132,23 +128,23 @@ function init() {
 
     scene.add(lod);
 
-    const waterGeomtry = new THREE.PlaneGeometry(10000,10000);
+    const waterGeomtry = new THREE.PlaneGeometry(10000, 10000);
 
     const waterNormals = textureLoader.load('asset/NormalMap/Water_1_M_Normal.jpg');
     waterNormals.wrapS = THREE.RepeatWrapping;
     waterNormals.wrapT = THREE.RepeatWrapping;
 
-    const sundirection  = new THREE.Vector3(3000,5000,2000).normalize();
+    const sundirection = new THREE.Vector3(3000, 5000, 2000).normalize();
 
     water = new Water(waterGeomtry, {
-        textureHeight : worldDepth,
+        textureHeight: worldDepth,
         textureWidth: worldWidth,
-        waterNormals:waterNormals,
+        waterNormals: waterNormals,
         sunDirection: sundirection,
-        sunColor:0xffffff,
-        waterColor : 0x001e0f,
-        distortionScale : 3.7,
-        fog : scene.fog !== undefined
+        sunColor: 0xffffff,
+        waterColor: 0x001e0f,
+        distortionScale: 3.7,
+        fog: scene.fog !== undefined
     })
     water.rotateX(-Math.PI / 2);
     water.position.y = 0;
@@ -163,7 +159,7 @@ function init() {
     helper = new THREE.Mesh(geometryHelper, new THREE.MeshNormalMaterial());
     scene.add(helper);
 
-    raycastHandler = initRaycast({ camera, renderer, lod, helper, container });
+    raycastHandler = initRaycast({camera, renderer, lod, helper, container});
     stats = new Stats();
     container.appendChild(stats.dom);
 
@@ -176,7 +172,7 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
-    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
 }
 
@@ -200,7 +196,7 @@ function animate() {
 function render() {
 
     water.material.uniforms['time'].value += 1 / 60.0; // fart på vatnet
-    renderer.render( scene, camera );
+    renderer.render(scene, camera);
 
 }
 
