@@ -19,6 +19,7 @@ let worldDepth = 256;
 
 let mesh;
 let helper;
+let sun, directionalLight, water;
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -49,14 +50,25 @@ function init() {
     controls.maxDistance = 10000;
     controls.maxPolarAngle = Math.PI / 2;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(3000, 5000, 2000);
+    directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5000, 5000, 2000);
     scene.add(directionalLight);
 
     const textureLoader = new THREE.TextureLoader();
+
+    const sunGeometry = new THREE.SphereGeometry(100,32, 32);
+    const sunMaterial = new THREE.MeshBasicMaterial({
+        map:textureLoader.load('asset/DiffuseMap/texture_sun.jpg')
+    });
+    sun = new THREE.Mesh(sunGeometry, sunMaterial);
+    sun.position.set(3000,5000,2000);
+    scene.add(sun);
+
+    directionalLight.position.copy(sun.position);
+
     const exrLoader = new EXRLoader()
     const AagotnesHeightMap = textureLoader.load('asset/HeightMap/aagotnesHeightMap.png');
     const diffuseMap = textureLoader.load('asset/DiffuseMap/rocky_terrain_02_diff_1k.jpg');
@@ -68,12 +80,17 @@ function init() {
     diffuseMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
     lod = new THREE.LOD();
+    const displaceMentScale = 400;
+    const displaceMentBias = -100;
+
     const highResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth - 1, worldDepth - 1);
     highResGeometry.rotateX(-Math.PI / 2);
+
+
     const highResMesh = new THREE.Mesh(highResGeometry, new THREE.MeshStandardMaterial({
         displacementMap: AagotnesHeightMap,
-        displacementScale: 400,
-        displacementBias: -200,
+        displacementScale: displaceMentScale,
+        displacementBias: displaceMentBias,
         normalMap : normalMap,
         map: diffuseMap
     }));
@@ -83,8 +100,8 @@ function init() {
     medResGeometry.rotateX(-Math.PI / 2);
     const medResMesh = new THREE.Mesh(medResGeometry, new THREE.MeshStandardMaterial({
         displacementMap: AagotnesHeightMap,
-        displacementScale: 400,
-        displacementBias: -200,
+        displacementScale: displaceMentScale,
+        displacementBias: displaceMentBias,
         normalMap : normalMap,
         map: diffuseMap
     }));
@@ -94,8 +111,8 @@ function init() {
     lowResGeometry.rotateX(-Math.PI / 2);
     const lowResMesh = new THREE.Mesh(lowResGeometry, new THREE.MeshStandardMaterial({
         displacementMap: AagotnesHeightMap,
-        displacementScale: 400,
-        displacementBias: -200,
+        displacementScale: displaceMentScale,
+        displacementBias: displaceMentBias,
         normalMap : normalMap,
         map: diffuseMap
     }));
@@ -112,11 +129,13 @@ function init() {
     waterNormals.wrapS = THREE.RepeatWrapping;
     waterNormals.wrapT = THREE.RepeatWrapping;
 
-    const water = new Water(waterGeomtry, {
+    const sundirection  = new THREE.Vector3(3000,5000,2000).normalize();
+
+    water = new Water(waterGeomtry, {
         textureHeight : worldDepth,
         textureWidth: worldWidth,
         waterNormals:waterNormals,
-        sunDirection: new THREE.Vector3(0.3,0.8,0.2),
+        sunDirection: sundirection,
         sunColor:0xffffff,
         waterColor : 0x001e0f,
         distortionScale : 3.7,
@@ -156,6 +175,15 @@ function onWindowResize() {
 
 function animate() {
 
+
+    const time = Date.now() * 0.0001;
+    sun.position.x = Math.cos(time) * 5000;
+    sun.position.y = Math.sin(time) * 3000 + 2000;
+    sun.position.z = 2000;
+
+    directionalLight.position.copy(sun.position);
+    water.material.uniforms['sunDirection'].value.copy(sun.position).normalize();
+
     render();
     stats.update();
 
@@ -163,6 +191,7 @@ function animate() {
 
 function render() {
 
+    water.material.uniforms['time'].value += 10 / 60.0;
     renderer.render( scene, camera );
 
 }
