@@ -1,20 +1,21 @@
 "use strict";
-// kjør "npx vite" for å kjøre programmet.
+// kjør "npx vite" for å kjøre programmet. og så på lokalhost linken som blir gennerert
 
 // hentet eksempel kode fra : https://github.com/mrdoob/three.js/blob/master/examples/webgl_geometry_terrain_raycast.html
-
-
 
 import * as THREE from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import {EXRLoader} from "three/addons";
+import { EXRLoader} from "three/addons";
 
 let container, stats;
 
-let camera, controls, scene, renderer;
+let camera, controls, scene, renderer, lod;
+
+let worldWidth = 256;
+let worldDepth = 256;
 
 let mesh;
 let helper;
@@ -29,7 +30,11 @@ function init() {
     container = document.getElementById('container');
     container.innerHTML = '';
 
-    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        powerPreference:'high-performance',
+    });
+
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setAnimationLoop(animate);
@@ -51,104 +56,57 @@ function init() {
     directionalLight.position.set(3000, 5000, 2000);
     scene.add(directionalLight);
 
-    const exrLoader = new EXRLoader();
-    const heightMapPath = 'asset/HeightMap/height_map.exr';
-    const diffuseMapPath = 'asset/DiffuseMap/diffuse_map.exr';
+    const textureLoader = new THREE.TextureLoader();
+    const exrLoader = new EXRLoader()
+    const AagotnesHeightMap = textureLoader.load('asset/HeightMap/aagotnesHeightMap.png');
+    const diffuseMap = textureLoader.load('asset/DiffuseMap/rocky_terrain_02_diff_1k.jpg');
+    const normalMap = exrLoader.load('asset/NormalMap/rocky_terrain_02_nor_gl_1k.exr');
 
-    exrLoader.load(heightMapPath, (heightTex) => {
+    diffuseMap.wrapS = THREE.RepeatWrapping;
+    diffuseMap.wrapT = THREE.RepeatWrapping;
+    diffuseMap.repeat.set(4,4);
+    diffuseMap.anisotropy = renderer.capabilities.getMaxAnisotropy();
 
-        heightTex.minFilter = THREE.LinearFilter;
-        heightTex.magFilter = THREE.LinearFilter;
+    lod = new THREE.LOD();
+    const highResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth - 1, worldDepth - 1);
+    highResGeometry.rotateX(-Math.PI / 2);
+    const highResMesh = new THREE.Mesh(highResGeometry, new THREE.MeshStandardMaterial({
+        displacementMap: AagotnesHeightMap,
+        displacementScale: 400,
+        displacementBias: -200,
+        normalMap : normalMap,
+        map: diffuseMap
+    }));
 
-        const img = heightTex.image;
-        const srcWidth = img.width;
-        const srcHeight = img.height;
+    // Medium detail geometry (medium distance)
+    const medResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth / 2 - 1, worldDepth / 2 - 1);
+    medResGeometry.rotateX(-Math.PI / 2);
+    const medResMesh = new THREE.Mesh(medResGeometry, new THREE.MeshStandardMaterial({
+        displacementMap: AagotnesHeightMap,
+        displacementScale: 400,
+        displacementBias: -200,
+        normalMap : normalMap,
+        map: diffuseMap
+    }));
 
-        const meshSegmentsX = 512;
-        const meshSegmentsY = 512;
+    // Low detail geometry (far away)
+    const lowResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth / 4 - 1, worldDepth / 4 - 1);
+    lowResGeometry.rotateX(-Math.PI / 2);
+    const lowResMesh = new THREE.Mesh(lowResGeometry, new THREE.MeshStandardMaterial({
+        displacementMap: AagotnesHeightMap,
+        displacementScale: 400,
+        displacementBias: -200,
+        normalMap : normalMap,
+        map: diffuseMap
+    }));
 
-        const width = meshSegmentsX + 1;
-        const height = meshSegmentsY + 1;
+    lod.addLevel(highResMesh, 0);      // 0 to 2000 units
+    lod.addLevel(medResMesh, 2000);    // 2000 to 5000 units
+    lod.addLevel(lowResMesh, 5000);    // 5000+ units
 
-        const pixelData = img.data;
+    scene.add(lod);
 
-        function sampleHeight(u, v) {
-            const x = Math.min(srcWidth - 1, Math.max(0, Math.floor(u * (srcWidth - 1))));
-            const y = Math.min(srcHeight - 1, Math.max(0, Math.floor(v * (srcHeight - 1))));
-            const idx = (y * srcWidth + x) * 4;
-            return pixelData[idx];
-        }
-
-        const heightData = new Float32Array(width * height);
-        for (let y = 0; y < height; y++) {
-            const v = y / (height - 1);
-            for (let x = 0; x < width; x++) {
-                const u = x / (width - 1);
-                heightData[y * width + x] = sampleHeight(u, v);
-            }
-        }
-
-        // Normalize the height data
-        let minHeight = Infinity;
-        let maxHeight = -Infinity;
-        for (let i = 0; i < heightData.length; i++) {
-            minHeight = Math.min(minHeight, heightData[i]);
-            maxHeight = Math.max(maxHeight, heightData[i]);
-        }
-        const range = maxHeight - minHeight;
-
-        const outScale = 0.5;   // scales normalized heights (try 0.1 .. 1.0)
-        const outOffset = 0;   // shifts baseline (keep 0.0 for no offset)
-
-        const invRange = range !== 0 ? 1 / range : 0;
-
-        for (let i = 0; i < heightData.length; i++) {
-            const n = (heightData[i] - minHeight) * invRange; // normalize to 0..1
-            heightData[i] = n * outScale + outOffset;         // apply scaling and offset
-        }
-
-        const terrainSize = 7500;
-        const geometry = new THREE.PlaneGeometry(
-            terrainSize,
-            terrainSize,
-            meshSegmentsX,
-            meshSegmentsY
-        );
-        geometry.rotateX(-Math.PI / 2);
-
-        const vertices = geometry.attributes.position.array;
-        const heightScale = 1000;
-
-        for (let i = 0, j = 0, l = heightData.length; i < l; i++, j += 3) {
-            vertices[j + 1] = heightData[i] * heightScale;
-        }
-        geometry.computeVertexNormals();
-
-        // Load EXR diffuse texture
-        exrLoader.load(diffuseMapPath, (diffuseTexture) => {
-            diffuseTexture.wrapS = THREE.ClampToEdgeWrapping;
-            diffuseTexture.wrapT = THREE.ClampToEdgeWrapping;
-            diffuseTexture.colorSpace = THREE.SRGBColorSpace;
-            diffuseTexture.minFilter = THREE.LinearFilter;
-            diffuseTexture.magFilter = THREE.LinearFilter;
-
-            mesh = new THREE.Mesh(
-                geometry,
-                new THREE.MeshStandardMaterial({ map: diffuseTexture })
-            );
-            scene.add(mesh);
-
-            const centerIndex =
-                (Math.floor(height / 2) * width) + Math.floor(width / 2);
-            controls.target.set(
-                0,
-                heightData[centerIndex] * heightScale + 500,
-                0
-            );
-            camera.position.set(2000, controls.target.y + 2000, 0);
-            controls.update();
-        });
-    });
+    mesh = highResMesh;
 
     const geometryHelper = new THREE.ConeGeometry(20, 100, 3);
     geometryHelper.translate(0, 50, 0);
@@ -189,15 +147,30 @@ function render() {
 }
 
 
+let lastRaycastTime = 0;
+const raycastInterval = 33; // ~30fps for raycasting
 
 function onPointerMove(event) {
-    if (!mesh) return; // don't run until mesh is loaded
+    if (!lod) return;
 
+    // Update pointer position immediately (smooth cursor tracking)
     pointer.x = (event.clientX / renderer.domElement.clientWidth) * 2 - 1;
     pointer.y = -(event.clientY / renderer.domElement.clientHeight) * 2 + 1;
+
+    // Throttle expensive raycasting
+    const now = performance.now();
+    if (now - lastRaycastTime < raycastInterval) return;
+    lastRaycastTime = now;
+
     raycaster.setFromCamera(pointer, camera);
 
-    const intersects = raycaster.intersectObject(mesh);
+    lod.update(camera);
+    const currentLevelIndex = lod.getCurrentLevel();
+
+    if (currentLevelIndex === -1) return;
+
+    const currentMesh = lod.children[currentLevelIndex];
+    const intersects = raycaster.intersectObject(currentMesh);
 
     if (intersects.length > 0) {
         helper.position.set(0, 0, 0);
@@ -205,6 +178,7 @@ function onPointerMove(event) {
         helper.position.copy(intersects[0].point);
     }
 }
+
 
 
 
