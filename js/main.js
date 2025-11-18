@@ -71,8 +71,10 @@ function init() {
 
     const exrLoader = new EXRLoader()
     const AagotnesHeightMap = textureLoader.load('asset/HeightMap/aagotnesHeightMap.png');
-    const diffuseMap = textureLoader.load('asset/DiffuseMap/rocky_terrain_02_diff_1k.jpg');
+    const diffuseMap = textureLoader.load('asset/DiffuseMap/coast_sand_rocks_02_diff_4k.jpg');
     const normalMap = exrLoader.load('asset/NormalMap/rocky_terrain_02_nor_gl_1k.exr');
+    const roughnessMap = exrLoader.load('asset/RoughnessMap/rocky_terrain_02_rough_1k.exr');
+    const specularMap = textureLoader.load('asset/SpecularMap/rocky_terrain_02_spec_1k.png');
 
     diffuseMap.wrapS = THREE.RepeatWrapping;
     diffuseMap.wrapT = THREE.RepeatWrapping;
@@ -92,6 +94,9 @@ function init() {
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
         normalMap : normalMap,
+        roughnessMap : normalMap,
+        metalnessMap : specularMap,
+        metalness : 0.1,
         map: diffuseMap
     }));
 
@@ -102,6 +107,9 @@ function init() {
         displacementMap: AagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
+        metalnessMap: specularMap,
+        metalness: 0.1,
+        roughnessMap : roughnessMap,
         normalMap : normalMap,
         map: diffuseMap
     }));
@@ -113,6 +121,9 @@ function init() {
         displacementMap: AagotnesHeightMap,
         displacementScale: displaceMentScale,
         displacementBias: displaceMentBias,
+        metalnessMap : specularMap,
+        metalness: 0.1,
+        roughnessMap : roughnessMap,
         normalMap : normalMap,
         map: diffuseMap
     }));
