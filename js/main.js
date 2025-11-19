@@ -9,7 +9,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 
 import {Water} from "three/addons/objects/Water.js";
 import {initRaycast} from "./raycaster.js";
-import {initCameraControls} from "./cameraControls.js";
+import {initCameraControls, updateCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
@@ -95,7 +95,7 @@ async function init() {
         waterColor: 0x001e0f,
         distortionScale: 3.7,
         fog: scene.fog !== undefined
-    })
+    });
     water.rotateX(-Math.PI / 2);
     water.position.y = 0;
     scene.add(water);
@@ -126,6 +126,8 @@ function onWindowResize() {
 function animate() {
     const delta = clock.getDelta();
     const time = Date.now() * 0.00001;
+
+    updateCameraControls(delta);
 
     // Sun orbit
     sun.position.x = Math.cos(time) * 5000;
