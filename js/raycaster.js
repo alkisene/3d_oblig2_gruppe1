@@ -7,7 +7,7 @@ let pointer = new THREE.Vector2();
 let lastRaycastTime = 0;
 const raycastInterval = 33; // ~30fps for raycasting
 
-export function initRaycast({camera, renderer, lod, helper, container}) {
+export function initRaycast({camera, renderer, lod, helper, container}) { //Burde dette være en async function?
     function onPointerMove(event) {
         if (!lod) return;
 

@@ -14,7 +14,7 @@ import {initCameraControls, updateCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
-import background from "three/src/renderers/common/Background";
+import {initTreePlacer} from "./addTrees";
 
 let container, stats;
 
@@ -27,6 +27,7 @@ let mesh;
 let helper;
 let sun, moon, directionalLight, moonLight, water, sky, fog;
 let raycastHandler;
+let treePlacer;
 let clock;
 
 const WATER_TIME_SCALE = 1.0;
@@ -125,6 +126,8 @@ async function init() {
     raycastHandler = initRaycast({camera, renderer, lod, helper, container});
     stats = new Stats();
     container.appendChild(stats.dom);
+
+    treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
 
     window.addEventListener('resize', onWindowResize);
 }
