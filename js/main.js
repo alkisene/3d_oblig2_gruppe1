@@ -11,10 +11,11 @@ import {Water} from "three/addons/objects/Water.js";
 import {initRaycast} from "./raycaster.js";
 import {initCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
+import {createLODMesh} from "./LOD.js";
 
 let container, stats;
 
-let camera, controls, scene, renderer, lod;
+let camera, controls, scene, renderer;
 
 let worldWidth = 256;
 let worldDepth = 256;
@@ -40,7 +41,7 @@ async function init() {
     container.appendChild(renderer.domElement);
 
     const {
-        aagotnesHeightMap,
+        displacementMap,
         diffuseMap,
         normalMap,
         roughnessMap,
@@ -48,7 +49,7 @@ async function init() {
         waterNormalMap,
         sunTexture
     } = await loadAssets(renderer);
-    
+
     ({camera, controls} = initCameraControls(renderer.domElement));
 
     renderer.setAnimationLoop(animate);
@@ -72,59 +73,10 @@ async function init() {
 
     directionalLight.position.copy(sun.position);
 
-
-    lod = new THREE.LOD();
-    const displaceMentScale = 400;
-    const displaceMentBias = -100;
-
-    const highResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth - 1, worldDepth - 1);
-    highResGeometry.rotateX(-Math.PI / 2);
-
-
-    const highResMesh = new THREE.Mesh(highResGeometry, new THREE.MeshStandardMaterial({
-        displacementMap: aagotnesHeightMap,
-        displacementScale: displaceMentScale,
-        displacementBias: displaceMentBias,
-        normalMap: normalMap,
-        roughnessMap: normalMap,
-        metalnessMap: specularMap,
-        metalness: 0.1,
-        map: diffuseMap
-    }));
-
-    // Medium detail geometry (medium distance)
-    const medResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth / 2 - 1, worldDepth / 2 - 1);
-    medResGeometry.rotateX(-Math.PI / 2);
-    const medResMesh = new THREE.Mesh(medResGeometry, new THREE.MeshStandardMaterial({
-        displacementMap: aagotnesHeightMap,
-        displacementScale: displaceMentScale,
-        displacementBias: displaceMentBias,
-        metalnessMap: specularMap,
-        metalness: 0.1,
-        roughnessMap: roughnessMap,
-        normalMap: normalMap,
-        map: diffuseMap
-    }));
-
-    // Low detail geometry (far away)
-    const lowResGeometry = new THREE.PlaneGeometry(7500, 7500, worldWidth / 4 - 1, worldDepth / 4 - 1);
-    lowResGeometry.rotateX(-Math.PI / 2);
-    const lowResMesh = new THREE.Mesh(lowResGeometry, new THREE.MeshStandardMaterial({
-        displacementMap: aagotnesHeightMap,
-        displacementScale: displaceMentScale,
-        displacementBias: displaceMentBias,
-        metalnessMap: specularMap,
-        metalness: 0.1,
-        roughnessMap: roughnessMap,
-        normalMap: normalMap,
-        map: diffuseMap
-    }));
-
-    lod.addLevel(highResMesh, 0);      // 0 to 2000 units
-    lod.addLevel(medResMesh, 2000);    // 2000 to 5000 units
-    lod.addLevel(lowResMesh, 5000);    // 5000+ units
-
-    scene.add(lod);
+    const {
+        lod,
+        highResMesh
+    } = createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth);
 
     const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
     const sundirection = new THREE.Vector3(3000, 5000, 2000).normalize();
@@ -143,7 +95,6 @@ async function init() {
     water.position.y = 0;
     scene.add(water);
 
-
     mesh = highResMesh;
 
     const geometryHelper = new THREE.ConeGeometry(20, 100, 3);
@@ -159,7 +110,6 @@ async function init() {
     window.addEventListener('resize', onWindowResize);
 }
 
-
 function onWindowResize() {
 
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -168,7 +118,6 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 
 }
-
 
 function animate() {
 

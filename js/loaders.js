@@ -5,7 +5,7 @@ export async function loadAssets(renderer) {
     const textureLoader = new THREE.TextureLoader();
     const exrLoader = new EXRLoader()
     const [
-        aagotnesHeightMap,
+        displacementMap,
         diffuseMap,
         normalMap,
         roughnessMap,
@@ -27,5 +27,5 @@ export async function loadAssets(renderer) {
     waterNormalMap.wrapS = THREE.RepeatWrapping;
     waterNormalMap.wrapT = THREE.RepeatWrapping;
 
-    return {aagotnesHeightMap, diffuseMap, normalMap, roughnessMap, specularMap, waterNormalMap, sunTexture};
+    return {displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, waterNormalMap, sunTexture};
 }
