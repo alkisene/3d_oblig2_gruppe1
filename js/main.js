@@ -16,9 +16,14 @@ import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
 import {initTreePlacer, populateTreesRandomly} from "./addTrees";
 
+
+import { SnowEffect } from './SnowEffect.js';
+
 let container, stats;
 
 let camera, controls, scene, renderer;
+
+let snow;
 
 let worldWidth = 256;
 let worldDepth = 256;
@@ -89,6 +94,17 @@ async function init() {
     moonLight.position.copy(moon.position);
     scene.add(moonLight);
 
+
+    snow = new SnowEffect({
+        scene: scene,
+        count: 20000,
+        size: 130,
+        radius: 2,
+        areaScale: 20
+    });
+    snow.points.frustumCulled = false;
+
+
     const {
         lod,
         highResMesh
@@ -102,8 +118,8 @@ async function init() {
 
 
     water = new Water(waterGeometry, {
-        textureHeight: worldDepth,
-        textureWidth: worldWidth,
+        textureHeight: 2048,
+        textureWidth: 2048,
         waterNormals: waterNormalMap,
         sunDirection: sunDirection,
         sunColor: 0xffffff,
@@ -172,6 +188,9 @@ function animate() {
     water.material.uniforms.sunColor.value.copy(sunColor).lerp(moonColor, nightFactor);
     water.material.uniforms.sunDirection.value.copy(sun.position).normalize();
     water.material.uniforms.sunDirection.value.copy(moon.position).normalize();
+
+    // snow
+    snow.update();
 
     render(delta);
     stats.update();
