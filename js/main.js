@@ -97,7 +97,7 @@ async function init() {
     const waterGeometry = new THREE.PlaneGeometry(7500, 7500);
     const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
 
-    fog = new THREE.FogExp2(background.color,0.00025);
+    fog = new THREE.FogExp2(scene.background,0.00025);
     scene.fog = fog;
 
 
