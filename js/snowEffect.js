@@ -73,11 +73,13 @@ export class SnowEffect {
                     radius = 0.8,
                     simple = false,
                     textureUrl = 'https://i.imgur.com/zQXz4x2.png',
-                    areaScale = 1.0          // ← Now actually works! 1.0 = original size
+                    areaScale = 1.0,          // ← Now actually works! 1.0 = original size,
+                    snowFallSpeed = 1.0
                 } = {}) {
         this.scene = scene;
         this.count = count;
         this.areaScale = areaScale;
+        this.snowFallSpeed = snowFallSpeed;
 
         this.params = { size, radius, simple };
 
@@ -106,7 +108,6 @@ export class SnowEffect {
                 uSize: { value: size },
                 uRadius: { value: radius },
                 uArea: { value: shaderArea },
-                uCameraPosition: { value: new THREE.Vector3() },  // ← Add this
                 uTexture: { value: texture || new THREE.Texture() },
                 uSimple: { value: simple }
             },
@@ -128,7 +129,7 @@ export class SnowEffect {
     }
 
     update() {
-        this.material.uniforms.uTime.value = this.clock.getElapsedTime();
+        this.material.uniforms.uTime.value = this.clock.getElapsedTime() * this.snowFallSpeed;
     }
 
     // Controls
