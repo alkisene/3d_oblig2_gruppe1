@@ -137,7 +137,9 @@ export class SnowEffect {
     setWind(v) { this.material.uniforms.uRadius.value = v; }
     setAreaScale(v) {
         this.areaScale = v;
-        this.material.uniforms.uArea.value = 7.0 * v;
+        const baseArea = 7.0;
+        const shaderOverlap = 1.05;
+        this.material.uniforms.uArea.value = baseArea * v * shaderOverlap;
     }
     setSimple(v) { this.material.uniforms.uSimple.value = v; }
 

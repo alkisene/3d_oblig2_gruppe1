@@ -100,9 +100,10 @@ async function init() {
         count: 20000,
         size: 130,
         radius: 2,
-        areaScale: 20
+        areaScale: 20,
+        snowFallSpeed: 1
     });
-    snow.points.frustumCulled = false;
+    snow.points.frustumCulled = false; // default køllingen lager hull i snøen...finnes sikkert en bedre løsning
 
 
     const {
