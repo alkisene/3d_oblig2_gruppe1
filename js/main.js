@@ -63,7 +63,8 @@ async function init() {
         specularMap,
         waterNormalMap,
         sunTexture,
-        moonTexture
+        moonTexture,
+        snowTexture
     } = await loadAssets(renderer);
 
     ({camera, controls} = initCameraControls(renderer.domElement));
@@ -109,7 +110,7 @@ async function init() {
     const {
         lod,
         highResMesh
-    } = createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth);
+    } = createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth, snowTexture);
 
     const waterGeometry = new THREE.PlaneGeometry(7500, 7500);
     const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
