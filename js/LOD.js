@@ -6,8 +6,8 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
     const lod = new THREE.LOD();
 
     // Ensure we have defaults if arguments are missing
-    const w = worldWidth || 256;
-    const d = worldDepth || 256;
+    const w = worldWidth;
+    const d = worldDepth;
 
     // Helper function to create the material with custom blending logic
     function createCustomMaterial() {
