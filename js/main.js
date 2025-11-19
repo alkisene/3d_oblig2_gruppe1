@@ -14,6 +14,7 @@ import {initCameraControls, updateCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
+import background from "three/src/renderers/common/Background";
 
 let container, stats;
 
@@ -24,7 +25,7 @@ let worldDepth = 256;
 
 let mesh;
 let helper;
-let sun, moon, directionalLight, moonLight, water, sky;
+let sun, moon, directionalLight, moonLight, water, sky, fog;
 let raycastHandler;
 let clock;
 
@@ -94,6 +95,10 @@ async function init() {
 
     const waterGeometry = new THREE.PlaneGeometry(7500, 7500);
     const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
+
+    fog = new THREE.FogExp2(background.color,0.00025);
+    scene.fog = fog;
+
 
     water = new Water(waterGeometry, {
         textureHeight: worldDepth,
