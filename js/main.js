@@ -12,6 +12,7 @@ import {initRaycast} from "./raycaster.js";
 import {initCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
+import {createCelestialEntity} from "./celestialEntity.js";
 
 let container, stats;
 
@@ -22,8 +23,13 @@ let worldDepth = 256;
 
 let mesh;
 let helper;
-let sun, directionalLight, water;
+let sun, moon, directionalLight, moonLight, water;
 let raycastHandler;
+let clock;
+
+const WATER_TIME_SCALE = 1.0;
+const sunColor = new THREE.Color(0xffffff);
+const moonColor = new THREE.Color(0x88aaff);
 init().catch(err => console.error(err));
 
 async function init() {
@@ -47,14 +53,15 @@ async function init() {
         roughnessMap,
         specularMap,
         waterNormalMap,
-        sunTexture
+        sunTexture,
+        moonTexture
     } = await loadAssets(renderer);
 
     ({camera, controls} = initCameraControls(renderer.domElement));
-
+    clock = new THREE.Clock();
     renderer.setAnimationLoop(animate);
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xbfd1e5);
+    scene.background = new THREE.Color(0x000000);
 
     //const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
     //scene.add(ambientLight);
@@ -63,15 +70,14 @@ async function init() {
     directionalLight.position.set(5000, 5000, 2000);
     scene.add(directionalLight);
 
-    const sunGeometry = new THREE.SphereGeometry(100, 32, 32);
-    const sunMaterial = new THREE.MeshBasicMaterial({
-        map: sunTexture,
-    });
-    sun = new THREE.Mesh(sunGeometry, sunMaterial);
-    sun.position.set(3000, 5000, 2000);
-    scene.add(sun);
-
+    sun = createCelestialEntity(scene, sunTexture, 100, 32, 32, 3000, 5000, 2000);
     directionalLight.position.copy(sun.position);
+
+    moon = createCelestialEntity(scene, moonTexture, 100, 32, 32, 3000, 5000, 2000);
+
+    moonLight = new THREE.DirectionalLight(moonColor, 0.0);
+    moonLight.position.copy(moon.position);
+    scene.add(moonLight);
 
     const {
         lod,
@@ -79,13 +85,13 @@ async function init() {
     } = createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth);
 
     const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
-    const sundirection = new THREE.Vector3(3000, 5000, 2000).normalize();
+    const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
 
     water = new Water(waterGeometry, {
         textureHeight: worldDepth,
         textureWidth: worldWidth,
         waterNormals: waterNormalMap,
-        sunDirection: sundirection,
+        sunDirection: sunDirection,
         sunColor: 0xffffff,
         waterColor: 0x001e0f,
         distortionScale: 3.7,
@@ -120,26 +126,40 @@ function onWindowResize() {
 }
 
 function animate() {
-
-
+    const delta = clock.getDelta();
     const time = Date.now() * 0.00001;
+
+    // Sun orbit
     sun.position.x = Math.cos(time) * 5000;
     sun.position.y = Math.sin(time) * 3000 + 2000;
     sun.position.z = 2000;
 
+    // Moon 180° out of phase so it rises as the sun sets
+    const moonPhase = time + Math.PI;
+    moon.position.x = Math.cos(moonPhase) * 5000;
+    moon.position.y = Math.sin(moonPhase) * 3000 + 2000;
+    moon.position.z = 2000;
+
+    // Keep directional light following the sun (not overwritten by moon)
     directionalLight.position.copy(sun.position);
-    water.material.uniforms['sunDirection'].value.copy(sun.position).normalize();
+    moonLight.position.copy(moon.position);
 
-    render();
+    // Adjust moonlight intensity based on sun height
+    const nightFactor = THREE.MathUtils.clamp(1 - (sun.position.y / 2000), 0, 1);
+    moonLight.intensity = 0.3 * nightFactor;
+
+    water.material.uniforms.sunColor.value.copy(sunColor).lerp(moonColor, nightFactor);
+    water.material.uniforms.sunDirection.value.copy(sun.position).normalize();
+    water.material.uniforms.sunDirection.value.copy(moon.position).normalize();
+
+    render(delta);
     stats.update();
-
 }
 
-function render() {
 
-    water.material.uniforms['time'].value += 1 / 60.0; // fart på vatnet
+function render(delta) {
+    water.material.uniforms['time'].value += delta * WATER_TIME_SCALE; // fart på vatnet
     renderer.render(scene, camera);
-
 }
 
 
