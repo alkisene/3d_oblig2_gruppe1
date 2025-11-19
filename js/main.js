@@ -6,8 +6,9 @@
 import * as THREE from 'three';
 
 import Stats from 'three/addons/libs/stats.module.js';
-
 import {Water} from "three/addons/objects/Water.js";
+import {Sky} from "three/addons/objects/Sky";
+
 import {initRaycast} from "./raycaster.js";
 import {initCameraControls, updateCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
@@ -23,7 +24,7 @@ let worldDepth = 256;
 
 let mesh;
 let helper;
-let sun, moon, directionalLight, moonLight, water;
+let sun, moon, directionalLight, moonLight, water, sky;
 let raycastHandler;
 let clock;
 
@@ -63,7 +64,15 @@ async function init() {
     renderer.setAnimationLoop(animate);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
+    sky = new Sky();
+    sky.scale.setScalar(450000);
+    scene.add(sky);
+
+    const skyUniforms = sky.material.uniforms; // ignore shit works
+    skyUniforms['turbidity'].value = 10;
+    skyUniforms['rayleigh'].value = 3;
+    skyUniforms['mieCoefficient'].value = 0.005;
+    skyUniforms['mieDirectionalG'].value = 0.7;
 
     directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5000, 5000, 2000);
@@ -125,7 +134,7 @@ function onWindowResize() {
 
 function animate() {
     const delta = clock.getDelta();
-    const time = Date.now() * 0.00001;
+    const time = Date.now() * 0.001;
 
     updateCameraControls(delta);
 
@@ -143,6 +152,8 @@ function animate() {
     // Keep directional light following the sun
     directionalLight.position.copy(sun.position);
     moonLight.position.copy(moon.position);
+    sky.material.uniforms['sunPosition'].value.copy(sun.position);
+
 
     // Adjust moonlight intensity based on sun height
     const nightFactor = THREE.MathUtils.clamp(1 - (sun.position.y / 2000), 0, 1);
