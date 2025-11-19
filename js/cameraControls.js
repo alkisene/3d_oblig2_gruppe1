@@ -126,7 +126,7 @@ function updateKeyboardMovement(delta) {
 export function initCameraControls(rendererDom) {
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
     controls = new OrbitControls(camera, rendererDom);
-    controls.minDistance = 1000;
+    controls.minDistance = 10;
     controls.maxDistance = 10000;
     controls.maxPolarAngle = Math.PI / 2;
 

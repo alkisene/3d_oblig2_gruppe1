@@ -88,7 +88,7 @@ async function init() {
     sun = createCelestialEntity(scene, sunTexture, 100, 32, 32, 3000, 5000, 2000);
     directionalLight.position.copy(sun.position);
 
-    moon = createCelestialEntity(scene, moonTexture, 100, 32, 32, 3000, 5000, 2000);
+    moon = createCelestialEntity(scene, moonTexture, 150, 32, 32, 3000, 5000, 2000);
 
     moonLight = new THREE.DirectionalLight(moonColor, 0.0);
     moonLight.position.copy(moon.position);

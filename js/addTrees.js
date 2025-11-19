@@ -1,6 +1,8 @@
+// File: `js/addTrees.js`
 import * as THREE from "three";
 import {OBJLoader} from "three/examples/jsm/loaders/OBJLoader.js";
 import {MTLLoader} from "three/examples/jsm/loaders/MTLLoader.js";
+import { createObjectLOD } from "./LOD.js";
 
 const mouse = new THREE.Vector2();
 const ray = new THREE.Raycaster();
@@ -8,7 +10,6 @@ const ray = new THREE.Raycaster();
 const objLoader = new OBJLoader()
 const mtlLoader = new MTLLoader();
 let treeTemplate = null; // cached, textured model
-// let materialsLoaded = false;
 
 const treePlacerState = {
     scene: null,
@@ -66,37 +67,56 @@ export async function initTreePlacer({camera, scene, container, lod, displacemen
 }
 
 // Helpers
-function spawnTree(point, scene) {
-    // If we've already loaded the tree once, just clone it
+function loadOBJPromise(filename) {
+    return new Promise((resolve, reject) => {
+        objLoader.load(filename, resolve, undefined, reject);
+    });
+}
+
+// Replace spawnTree with this async version that uses createObjectLOD from `js/LOD.js`
+async function spawnTree(point, scene) {
+    // If cached LOD prototype exists, clone and add
     if (treeTemplate) {
         const tree = treeTemplate.clone(true);
         tree.position.copy(point);
         const scalar = Math.random() * 5 + 3;
-        tree.scale.set(scalar, scalar, scalar);
+        tree.scale.setScalar(scalar);
         scene.add(tree);
         return;
     }
 
-    // First time: load materials, then OBJ, then cache template
-    mtlLoader.setPath("asset/Tree 02/");
-    mtlLoader.setResourcePath("asset/Tree 02/"); // where textures live
-
-    mtlLoader.load("Tree.mtl", (materials) => {
+    try {
+        // Prepare MTL (if you use MTL); change path/name as needed
+        mtlLoader.setPath(`asset/Tree 02/`);
+        mtlLoader.setResourcePath(`asset/Tree 02/`);
+        const materials = await new Promise((res, rej) =>
+            mtlLoader.load(`Tree.mtl`, res, undefined, rej)
+        );
         materials.preload();
         objLoader.setMaterials(materials);
-        objLoader.setPath("asset/Tree 02/");
+        objLoader.setPath(`asset/Tree 02/`);
 
-        objLoader.load("Tree.obj", (object) => {
-            treeTemplate = object; // cache original
+        // Load high, mid, low OBJs in parallel (change filenames if different)
+        const highObj = await Promise.all([
+            loadOBJPromise(`Tree.obj`)
+        ]);
 
-            const tree = object.clone(true);
-            tree.position.copy(point);
-            const scalar = Math.random() * 5 + 3;
-            tree.scale.set(scalar, scalar, scalar);
-            scene.add(tree);
-        });
-    });
+        // Use createObjectLOD helper to assemble LOD
+        const lod = createObjectLOD(highObj, [1, 0.5, 0.2], [0, 1500, 3000]);
+
+        treeTemplate = lod; // cache prototype LOD
+
+        // Add instance for this spawn
+        const tree = treeTemplate.clone(true);
+        tree.position.copy(point);
+        const scalar = Math.random() * 5 + 3;
+        tree.scale.setScalar(scalar);
+        scene.add(tree);
+    } catch (err) {
+        console.error("spawnTree: failed to load tree LODs", err);
+    }
 }
+
 
 // --- create a sampler from the displacement map ---
 function createHeightSampler(displacementMap, lod) {

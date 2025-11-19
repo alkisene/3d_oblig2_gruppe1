@@ -20,7 +20,7 @@ export async function loadAssets(renderer) {
         textureLoader.loadAsync('asset/SpecularMap/rocky_terrain_02_spec_1k.png'),
         textureLoader.loadAsync('asset/NormalMap/Water_1_M_Normal.jpg'),
         textureLoader.loadAsync('asset/DiffuseMap/texture_sun.jpg'),
-        textureLoader.loadAsync('asset/DiffuseMap/texture_moon.jpg')
+        textureLoader.loadAsync('asset/DiffuseMap/texture_moon_majoras_mask_like.png')
     ]);
     diffuseMap.wrapS = THREE.RepeatWrapping;
     diffuseMap.wrapT = THREE.RepeatWrapping;
