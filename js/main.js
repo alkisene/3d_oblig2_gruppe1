@@ -44,6 +44,9 @@ async function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
 
+    // bruker MSAA 4x eller det høyeste tilgjengelig.
+    renderer.samples = Math.min(4, renderer.capabilities.maxSamples)
+
     const {
         displacementMap,
         diffuseMap,
@@ -61,9 +64,6 @@ async function init() {
 
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
-
-    //const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-    //scene.add(ambientLight);
 
     directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5000, 5000, 2000);
@@ -138,7 +138,7 @@ function animate() {
     moon.position.y = Math.sin(moonPhase) * 3000 + 2000;
     moon.position.z = 2000;
 
-    // Keep directional light following the sun (not overwritten by moon)
+    // Keep directional light following the sun
     directionalLight.position.copy(sun.position);
     moonLight.position.copy(moon.position);
 
