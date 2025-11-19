@@ -145,7 +145,7 @@ async function init() {
 
     treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
 
-    populateTreesRandomly(500, 1)
+    populateTreesRandomly(500, 1, 5, 2048)
 
     window.addEventListener('resize', onWindowResize);
 }
