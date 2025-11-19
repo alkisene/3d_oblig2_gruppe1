@@ -33,7 +33,6 @@ const moonColor = new THREE.Color(0x88aaff);
 init().catch(err => console.error(err));
 
 async function init() {
-
     container = document.getElementById('container');
     container.innerHTML = '';
 
@@ -41,7 +40,6 @@ async function init() {
         antialias: true,
         powerPreference: 'high-performance',
     });
-
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
@@ -60,6 +58,7 @@ async function init() {
     ({camera, controls} = initCameraControls(renderer.domElement));
     clock = new THREE.Clock();
     renderer.setAnimationLoop(animate);
+
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
 
@@ -84,7 +83,7 @@ async function init() {
         highResMesh
     } = createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth);
 
-    const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+    const waterGeometry = new THREE.PlaneGeometry(7500, 7500);
     const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
 
     water = new Water(waterGeometry, {
@@ -122,7 +121,6 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 
     renderer.setSize(window.innerWidth, window.innerHeight);
-
 }
 
 function animate() {
@@ -156,10 +154,7 @@ function animate() {
     stats.update();
 }
 
-
 function render(delta) {
     water.material.uniforms['time'].value += delta * WATER_TIME_SCALE; // fart på vatnet
     renderer.render(scene, camera);
 }
-
-
