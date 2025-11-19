@@ -14,7 +14,7 @@ import {initCameraControls, updateCameraControls} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
-import {initTreePlacer} from "./addTrees";
+import {initTreePlacer, populateTreesRandomly} from "./addTrees";
 
 let container, stats;
 
@@ -128,6 +128,8 @@ async function init() {
     container.appendChild(stats.dom);
 
     treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
+
+    populateTreesRandomly(100)
 
     window.addEventListener('resize', onWindowResize);
 }

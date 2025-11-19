@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
+import {OBJLoader} from "three/examples/jsm/loaders/OBJLoader.js";
+import {MTLLoader} from "three/examples/jsm/loaders/MTLLoader.js";
 
 const mouse = new THREE.Vector2();
 const ray = new THREE.Raycaster();
@@ -9,6 +9,13 @@ const objLoader = new OBJLoader()
 const mtlLoader = new MTLLoader();
 let treeTemplate = null; // cached, textured model
 // let materialsLoaded = false;
+
+const treePlacerState = {
+    scene: null,
+    lod:   null,
+    sampleHeight: null,
+    bbox: null,
+};
 
 export async function initTreePlacer({camera, scene, container, lod, displacementMap}){
 
@@ -22,6 +29,12 @@ export async function initTreePlacer({camera, scene, container, lod, displacemen
     }
 
     const sampleHeight = createHeightSampler(displacementMap, lod);
+
+    // Store state so we can do random placement later
+    treePlacerState.scene = scene;
+    treePlacerState.lod = lod;
+    treePlacerState.sampleHeight = sampleHeight;
+    treePlacerState.bbox = new THREE.Box3().setFromObject(lod);
 
     function onDoubleClick(event) {
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -122,3 +135,118 @@ function createHeightSampler(displacementMap, lod) {
     };
 }
 
+// --- Random tree population based on density scalar (no raycasting) ---
+export function populateTreesRandomly(treeCount = 100) {
+    const { scene, lod, sampleHeight, bbox } = treePlacerState;
+
+    if (!scene || !lod || !sampleHeight || !bbox) {
+        console.error("populateTreesRandomly: tree placer not initialized yet");
+        return 0;
+    }
+
+    // Resolution of the logical grid in UV space
+    const GRID_COLS = 128;
+    const GRID_ROWS = 128;
+
+    // 2D grid of potential spots
+    const grid = new Array(GRID_COLS);
+    for (let i = 0; i < GRID_COLS; i++) {
+        grid[i] = new Array(GRID_ROWS);
+    }
+
+    // Flat list of all *currently valid* cells
+    const validCells = [];
+
+    // Precompute valid spots (height > 5) and map them to world XZ
+    for (let i = 0; i < GRID_COLS; i++) {
+        const u = (i + 0.5) / GRID_COLS; // [0,1]
+        for (let j = 0; j < GRID_ROWS; j++) {
+            const v = (j + 0.5) / GRID_ROWS; // [0,1]
+
+            // sampleHeight expects an { x, y } like hit.uv
+            const height = sampleHeight({ x: u, y: v });
+
+            // Only above shoreline
+            if (height <= 5) {
+                grid[i][j] = null;
+                continue;
+            }
+
+            // UV -> world coordinates
+            const x = THREE.MathUtils.lerp(bbox.min.x, bbox.max.x, u);
+
+            // IMPORTANT: v is flipped relative to world Z because of rotateX(-PI/2)
+            // v = 0 => max.z, v = 1 => min.z
+            const z = THREE.MathUtils.lerp(bbox.max.z, bbox.min.z, v);
+
+            grid[i][j] = {
+                valid: true,
+                x,
+                z,
+                height,
+                i,
+                j,
+                listIndex: validCells.length,
+            };
+            validCells.push({ i, j });
+        }
+    }
+
+    // Helper: remove a cell from validCells in O(1)
+    function invalidateCell(i, j) {
+        const cell = grid[i][j];
+        if (!cell || !cell.valid) return;
+
+        cell.valid = false;
+
+        const index = cell.listIndex;
+        const lastEntry = validCells[validCells.length - 1];
+
+        if (index < validCells.length - 1) {
+            validCells[index] = lastEntry;
+            const movedCell = grid[lastEntry.i][lastEntry.j];
+            movedCell.listIndex = index;
+        }
+
+        validCells.pop();
+        cell.listIndex = -1;
+    }
+
+    let placed = 0;
+
+    // Place trees until we've hit the requested amount or run out of spots
+    while (placed < treeCount && validCells.length > 0) {
+        const randIndex = Math.floor(Math.random() * validCells.length);
+        const { i, j } = validCells[randIndex];
+        const cell = grid[i][j];
+
+        if (!cell || !cell.valid) {
+            invalidateCell(i, j);
+            continue;
+        }
+
+        const position = new THREE.Vector3(cell.x, cell.height - 1, cell.z);
+        spawnTree(position, scene);
+        placed++;
+
+        // Invalidate this cell and its 3×3 neighbourhood
+        for (let di = -1; di <= 1; di++) {
+            const ii = i + di;
+            if (ii < 0 || ii >= GRID_COLS) continue;
+
+            for (let dj = -1; dj <= 1; dj++) {
+                const jj = j + dj;
+                if (jj < 0 || jj >= GRID_ROWS) continue;
+
+                if (grid[ii][jj] && grid[ii][jj].valid) {
+                    invalidateCell(ii, jj);
+                }
+            }
+        }
+    }
+
+    console.log(
+        `populateTreesRandomly: requested ${treeCount}, placed ${placed}, remaining valid spots: ${validCells.length}`
+    );
+    return placed;
+}
