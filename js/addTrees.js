@@ -68,7 +68,6 @@ export function initTreePlacer({camera, scene, container, lod, displacementMap})
 // Helpers
 // Update the spawnTree function in js/addTrees.js
 function spawnTree(point, scene) {
-    // If we've already loaded the tree templates, just clone them
     if (treeTemplate && treeTemplateMid && treeTemplateLow) {
         const lod = new THREE.LOD();
 
@@ -88,33 +87,47 @@ function spawnTree(point, scene) {
         return;
     }
 
-    // First time: load materials, then all OBJ files, then cache templates
+    // Load materials for high-res only
     mtlLoader.setPath("asset/Tree 02/");
     mtlLoader.setResourcePath("asset/Tree 02/");
 
     mtlLoader.load("Tree.mtl", (materials) => {
         materials.preload();
-        objLoader.setMaterials(materials);
         objLoader.setPath("asset/Tree 02/");
 
         Promise.all([
-            new Promise(resolve => objLoader.load("Tree.obj", resolve)),
-            new Promise(resolve => objLoader.load("Tree_mid.obj", resolve)),
-            new Promise(resolve => objLoader.load("Tree_low.obj", resolve))
+            new Promise(resolve => {
+                objLoader.setMaterials(materials);
+                objLoader.load("Tree.obj", resolve);
+            }),
+            new Promise(resolve => {
+                objLoader.load("Tree_mid.obj", resolve);
+            }),
+            new Promise(resolve => {
+                objLoader.load("tree_low.obj", resolve);
+            })
         ]).then(([objHigh, objMid, objLow]) => {
+            // Apply a simple fallback material to LOD models
+            const fallbackMaterial = new THREE.MeshStandardMaterial({
+                color: 0x228B22,
+                roughness: 0.8
+            });
+
+            objMid.traverse(child => {
+                if (child.isMesh) child.material = fallbackMaterial;
+            });
+            objLow.traverse(child => {
+                if (child.isMesh) child.material = fallbackMaterial;
+            });
+
             treeTemplate = objHigh;
             treeTemplateMid = objMid;
             treeTemplateLow = objLow;
 
             const lod = new THREE.LOD();
-
-            const treeHigh = objHigh.clone(true);
-            const treeMid = objMid.clone(true);
-            const treeLow = objLow.clone(true);
-
-            lod.addLevel(treeHigh, 0);
-            lod.addLevel(treeMid, 1500);
-            lod.addLevel(treeLow, 3000);
+            lod.addLevel(objHigh.clone(true), 0);
+            lod.addLevel(objMid.clone(true), 1500);
+            lod.addLevel(objLow.clone(true), 3000);
 
             lod.position.copy(point);
             const scalar = Math.random() * 5 + 3;
@@ -124,6 +137,8 @@ function spawnTree(point, scene) {
         });
     });
 }
+
+
 
 // --- create a sampler from the displacement map ---
 function createHeightSampler(displacementMap, lod) {
@@ -167,8 +182,8 @@ function createHeightSampler(displacementMap, lod) {
 // personalSpace: min spacing around a tree, in WORLD units (XZ plane)
 // gridResolution: number of cells along each side of the logical grid
 export function populateTreesRandomly(
-    treeCount = 100,
-    treesPerFrame = 3,
+    treeCount = 500,
+    treesPerFrame = 10,
     personalSpace = 25,
     gridResolution = 256
 ) {
