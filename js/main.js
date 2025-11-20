@@ -17,7 +17,7 @@ import {createCelestialEntity} from "./celestialEntity.js";
 import {initTreePlacer, populateTreesRandomly} from "./addTrees";
 
 
-import { SnowEffect } from './SnowEffect.js';
+import { SnowEffect } from './snowEffect.js';
 
 let container, stats;
 
@@ -147,7 +147,7 @@ async function init() {
 
     treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
 
-    populateTreesRandomly(500, 1, 5, 2048)
+    populateTreesRandomly(500, 3, 5, 2048)
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -188,8 +188,6 @@ function animate() {
     moonLight.intensity = 0.3 * nightFactor;
 
     water.material.uniforms.sunColor.value.copy(sunColor).lerp(moonColor, nightFactor);
-    water.material.uniforms.sunDirection.value.copy(sun.position).normalize();
-    water.material.uniforms.sunDirection.value.copy(moon.position).normalize();
 
     // snow
     snow.update();

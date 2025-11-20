@@ -126,10 +126,11 @@ function updateKeyboardMovement(delta) {
 export function initCameraControls(rendererDom) {
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
     controls = new OrbitControls(camera, rendererDom);
-    controls.minDistance = 10;
+    controls.minDistance = 100;
     controls.maxDistance = 10000;
     controls.maxPolarAngle = Math.PI / 2;
-
+    camera.position.set(1500, 900, 1500);
+    controls.target.set(0, 0, 0);
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
 
