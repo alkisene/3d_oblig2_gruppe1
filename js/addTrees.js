@@ -7,7 +7,7 @@ const ray = new THREE.Raycaster();
 
 const objLoader = new OBJLoader()
 const mtlLoader = new MTLLoader();
-let treeTemplate, treeTemplateMid, treeTemplateLow = null; // cached, textured model
+let treeTemplate= null, treeTemplateMid = null, treeTemplateLow = null; // cached, textured model
 // let materialsLoaded = false;
 
 const treePlacerState = {
