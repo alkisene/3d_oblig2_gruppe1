@@ -56,6 +56,7 @@ async function init() {
 
     // bruker MSAA 4x eller det høyeste tilgjengelig.
     renderer.samples = Math.min(4, renderer.capabilities.maxSamples)
+    renderer.shadowMap.enabled = true;
 
     const {
         displacementMap,
@@ -85,6 +86,7 @@ async function init() {
     skyUniforms['mieDirectionalG'].value = 0.7;
 
     directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.castShadow = true;
     directionalLight.position.set(5000, 5000, 2000);
     scene.add(directionalLight);
 
@@ -94,6 +96,7 @@ async function init() {
     moon = createCelestialEntity(scene, moonTexture, 150, 32, 32, 3000, 5000, 2000);
 
     moonLight = new THREE.DirectionalLight(moonColor, 0.0);
+    moonLight.castShadow = true;
     moonLight.position.copy(moon.position);
     scene.add(moonLight);
 
@@ -119,7 +122,6 @@ async function init() {
 
     fog = new THREE.Fog(scene.background, 2000, 7500);
     scene.fog = fog;
-
 
     water = new Water(waterGeometry, {
         textureHeight: 2048,
@@ -149,7 +151,6 @@ async function init() {
 
     treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
     daBoat = innitDaBoat({camera, scene, container, lod, displacementMap});
-
 
     populateTreesRandomly(500, 3, 5, 2048)
 
