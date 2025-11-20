@@ -18,7 +18,7 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
             normalMap: normalMap,
             roughnessMap: roughnessMap,
             metalnessMap: specularMap,
-            metalness: 0.1,
+            metalness: 0.001,
             map: diffuseMap
         });
 

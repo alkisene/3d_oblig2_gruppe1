@@ -117,7 +117,7 @@ async function init() {
     const waterGeometry = new THREE.PlaneGeometry(7500, 7500);
     const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
 
-    fog = new THREE.FogExp2(scene.background,0.00025);
+    fog = new THREE.Fog(scene.background, 2000, 7500);
     scene.fog = fog;
 
 
@@ -168,7 +168,7 @@ let justToggled = true;
 let boat_pos = null;
 function animate() {
     const delta = clock.getDelta();
-    const time = Date.now() * 0.001;
+    const time = Date.now() * 0.0001;
 
     updateCameraControls(delta);
 
