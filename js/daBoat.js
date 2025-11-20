@@ -2,7 +2,6 @@ import * as THREE from "three";
 import {OBJLoader} from "three/addons/loaders/OBJLoader";
 import {MTLLoader} from "three/addons/loaders/MTLLoader";
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
-import {createObjectLOD} from "./LOD";
 
 const points = [
     new THREE.Vector3(-476.72, 1, 782.35),
@@ -93,9 +92,8 @@ async function spawnDaBoat(scene) {
         ]);
 
         // Use createObjectLOD helper to assemble LOD
-        const lod = createObjectLOD(highObj, [1], [0]);
+        boat = highObj[0];
 
-        boat = lod;                 // <--- use the global
         applyBoatMaterial(boat);
 
         boat.position.copy(points[0]);
