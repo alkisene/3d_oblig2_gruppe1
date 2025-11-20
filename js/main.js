@@ -151,7 +151,7 @@ async function init() {
     daBoat = innitDaBoat({camera, scene, container, lod, displacementMap});
 
 
-    populateTreesRandomly(500, 1, 5, 2048)
+    populateTreesRandomly(500, 3, 5, 2048)
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -193,9 +193,19 @@ function animate() {
     const nightFactor = THREE.MathUtils.clamp(1 - (sun.position.y / 2000), 0, 1);
     moonLight.intensity = 0.3 * nightFactor;
 
-    water.material.uniforms.sunColor.value.copy(sunColor).lerp(moonColor, nightFactor);
-    water.material.uniforms.sunDirection.value.copy(sun.position).normalize();
-    water.material.uniforms.sunDirection.value.copy(moon.position).normalize();
+// Adjust water color between sun and moon
+    water.material.uniforms.sunColor.value
+        .copy(sunColor)
+        .lerp(moonColor, nightFactor);
+
+// Compute a blended light direction for the water
+    const sunDir  = sun.position.clone().normalize();
+    const moonDir = moon.position.clone().normalize();
+
+// nightFactor = 0  → pure sun direction
+// nightFactor = 1  → pure moon direction
+    const waterDir = sunDir.lerp(moonDir, nightFactor).normalize();
+    water.material.uniforms.sunDirection.value.copy(waterDir);
 
     // snow
     snow.update();
