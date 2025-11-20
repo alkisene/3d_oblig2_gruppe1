@@ -18,6 +18,7 @@ import {initTreePlacer, populateTreesRandomly} from "./addTrees";
 
 
 import { SnowEffect } from './SnowEffect.js';
+import {BOAT_SPEED, followDaBoat, innitDaBoat, updateBoat} from "./daBoat";
 
 let container, stats;
 
@@ -33,6 +34,7 @@ let helper;
 let sun, moon, directionalLight, moonLight, water, sky, fog;
 let raycastHandler;
 let treePlacer;
+let daBoat;
 let clock;
 
 const WATER_TIME_SCALE = 1.0;
@@ -146,6 +148,8 @@ async function init() {
     container.appendChild(stats.dom);
 
     treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
+    daBoat = innitDaBoat({camera, scene, container, lod, displacementMap});
+
 
     populateTreesRandomly(500, 1, 5, 2048)
 
@@ -159,7 +163,9 @@ function onWindowResize() {
 
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
-
+let old_camera_pos = null;
+let justToggled = true;
+let boat_pos = null;
 function animate() {
     const delta = clock.getDelta();
     const time = Date.now() * 0.001;
@@ -193,6 +199,26 @@ function animate() {
 
     // snow
     snow.update();
+
+    /*followDaBoat,
+    updateBoat,
+    BOAT_SPEED,
+    points*/
+
+    boat_pos = updateBoat(delta);
+
+    if(followDaBoat && boat_pos) {
+        if(justToggled) {
+            old_camera_pos = camera.position.clone();
+            justToggled = false;
+        }
+        camera.position.set(boat_pos.x, boat_pos.y+18, boat_pos.z);
+    } else {
+        if(!justToggled && old_camera_pos) {
+            justToggled = true;
+            camera.position.set(old_camera_pos.x, old_camera_pos.y, old_camera_pos.z);
+        }
+    }
 
     render(delta);
     stats.update();
