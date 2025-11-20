@@ -29,6 +29,10 @@ let nextIndex = 1;
 // Units per second (world units)
 let BOAT_SPEED = 80;
 
+// world units in XZ plane where we start blending the turn
+const TURN_DISTANCE = 80;
+
+
 const objLoader = new OBJLoader()
 const mtlLoader = new MTLLoader();
 const tgaLoader = new TGALoader();
@@ -132,15 +136,60 @@ function lookAtNextPoint() {
     if (!boat) return;
 
     const from = boat.position;
-    const to = points[nextIndex];
+    const currentTarget = points[nextIndex];
+    const nextNextIndex = (nextIndex + 1) % points.length;
+    const nextNextTarget = points[nextNextIndex];
 
-    // Keep boat level: only rotate around Y
-    const target = new THREE.Vector3(to.x, from.y, to.z);
-    boat.lookAt(target);
+    // Distance in XZ plane to the current target
+    const dx = currentTarget.x - from.x;
+    const dz = currentTarget.z - from.z;
+    const distXZ = Math.hypot(dx, dz);
 
-    // Rotate 90 degrees clockwise around Y
+    let lookTarget;
+
+    if (distXZ < TURN_DISTANCE) {
+        // --- Blend direction between currentTarget and nextNextTarget ---
+
+        // Direction from boat to current target (flattened to XZ)
+        const dirToCurrent = new THREE.Vector3(
+            currentTarget.x - from.x,
+            0,
+            currentTarget.z - from.z
+        ).normalize();
+
+        // Direction of the *next* segment (from current target to next-next target)
+        const dirToNextSegment = new THREE.Vector3(
+            nextNextTarget.x - currentTarget.x,
+            0,
+            nextNextTarget.z - currentTarget.z
+        ).normalize();
+
+        // t = 0 when we're TURN_DISTANCE away, t = 1 when we're on the waypoint
+        const t = THREE.MathUtils.clamp(1 - distXZ / TURN_DISTANCE, 0, 1);
+
+        // Blend directions
+        const blendedDir = dirToCurrent
+            .multiplyScalar(1 - t)
+            .add(dirToNextSegment.multiplyScalar(t))
+            .normalize();
+
+        // Our look target is "forward" in that blended direction
+        lookTarget = new THREE.Vector3(
+            from.x + blendedDir.x,
+            from.y,             // keep boat level
+            from.z + blendedDir.z
+        );
+    } else {
+        // --- Far from the corner: just look at the current target in XZ ---
+        lookTarget = new THREE.Vector3(currentTarget.x, from.y, currentTarget.z);
+    }
+
+    boat.lookAt(lookTarget);
+
+    // Rotate 90 degrees clockwise around Y so the model’s forward matches our look direction
     boat.rotateY(-Math.PI / 2);
 }
+
 
 
 const _dir = new THREE.Vector3(); // reuse to avoid allocs
@@ -190,4 +239,3 @@ export {
     BOAT_SPEED,
     points
 };
-
