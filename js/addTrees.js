@@ -120,6 +120,10 @@ function spawnTree(point, scene) {
                 if (child.isMesh) child.material = fallbackMaterial;
             });
 
+            enableShadows(objHigh);
+            enableShadows(objMid);
+            enableShadows(objLow);
+
             treeTemplate = objHigh;
             treeTemplateMid = objMid;
             treeTemplateLow = objLow;
@@ -315,3 +319,12 @@ export function populateTreesRandomly(
 
     requestAnimationFrame(step);
 }
+
+const enableShadows = (obj) => {
+    obj.traverse((child) => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+};

@@ -87,6 +87,15 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
     const medResMesh = new THREE.Mesh(medResGeometry, createCustomMaterial());
     const lowResMesh = new THREE.Mesh(lowResGeometry, createCustomMaterial());
 
+    highResMesh.castShadow = true;
+    highResMesh.receiveShadow = true;
+
+    medResMesh.castShadow = true;
+    medResMesh.receiveShadow = true;
+
+    lowResMesh.castShadow = true;
+    lowResMesh.receiveShadow = true;
+
     lod.addLevel(highResMesh, 0);
     lod.addLevel(medResMesh, 2000);
     lod.addLevel(lowResMesh, 5000);
