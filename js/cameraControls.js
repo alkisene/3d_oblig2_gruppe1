@@ -15,6 +15,14 @@ const verticalSpeed = 500;
 
 let camera, controls;
 
+//reusable vectors to avoid creating new ones for each movement
+const vForward = new THREE.Vector3();
+const vUp = new THREE.Vector3(0, 1, 0);
+const vRight = new THREE.Vector3();
+const deltaVec = new THREE.Vector3();
+const corrected = new THREE.Vector3();
+const correction = new THREE.Vector3();
+
 function onKeyDown(e) {
     switch (e.code) {
         case 'KeyW':
@@ -87,20 +95,18 @@ function updateKeyboardMovement(delta) {
     const horizSpeed = moveSpeed * delta;
     const vertSpeed = verticalSpeed * delta;
 
-    const forward = new THREE.Vector3();
-    camera.getWorldDirection(forward);
-    forward.y = 0;
-    if (forward.lengthSq() > 0) forward.normalize();
+    camera.getWorldDirection(vForward);
+    vForward.y = 0;
+    if (vForward.lengthSq() > 0) vForward.normalize();
 
-    const up = new THREE.Vector3(0, 1, 0);
-    const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+    vRight.crossVectors(vForward, vUp).normalize();
 
-    const deltaVec = new THREE.Vector3();
+    deltaVec.set(0, 0, 0);
 
-    if (move.forward) deltaVec.addScaledVector(forward, horizSpeed);
-    if (move.backward) deltaVec.addScaledVector(forward, -horizSpeed);
-    if (move.left) deltaVec.addScaledVector(right, -horizSpeed);
-    if (move.right) deltaVec.addScaledVector(right, horizSpeed);
+    if (move.forward) deltaVec.addScaledVector(vForward, horizSpeed);
+    if (move.backward) deltaVec.addScaledVector(vForward, -horizSpeed);
+    if (move.left) deltaVec.addScaledVector(vRight, -horizSpeed);
+    if (move.right) deltaVec.addScaledVector(vRight, horizSpeed);
     if (move.up) deltaVec.y += vertSpeed;
     if (move.down) deltaVec.y -= vertSpeed;
 
@@ -110,12 +116,12 @@ function updateKeyboardMovement(delta) {
     const minX = -3750, maxX = 3750;
     const minZ = -3750, maxZ = 3750;
 
-    const corrected = new THREE.Vector3(
+    corrected.set(
         THREE.MathUtils.clamp(camera.position.x, minX, maxX),
         camera.position.y,
         THREE.MathUtils.clamp(camera.position.z, minZ, maxZ)
     );
-    const correction = corrected.clone().sub(camera.position);
+    correction.copy(corrected).sub(camera.position);
 
     camera.position.add(correction);
     controls.target.add(correction);
