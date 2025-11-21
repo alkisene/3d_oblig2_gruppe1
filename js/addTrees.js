@@ -49,7 +49,7 @@ export function initTreePlacer({camera, scene, container, lod, displacementMap})
 
         if (hit.uv) {
             const height = sampleHeight(hit.uv);
-            if(height < 5) { // We don't place trees too near the shore or in water
+            if(height < 5 || height > 30) { // We don't place trees too near the shore or in water
                 return;
             }
             point.y = height - 1;
@@ -225,7 +225,7 @@ export function populateTreesRandomly(
             const v = (j + 0.5) / GRID_ROWS;
 
             const height = sampleHeight({ x: u, y: v });
-            if (height <= 5) {
+            if (height <= 5 || height >= 200) {
                 grid[i][j] = null;
                 continue;
             }
