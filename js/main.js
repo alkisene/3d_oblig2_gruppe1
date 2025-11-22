@@ -15,7 +15,8 @@ import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
 import {initTreePlacer, populateTreesRandomly} from "./addTrees";
-import {VRButton} from "./VRButton.js";
+import {VRButton} from "three/addons/webxr/VRButton.js";
+
 
 import { SnowEffect } from './SnowEffect.js';
 import {BOAT_SPEED, followDaBoat, innitDaBoat, updateBoat} from "./daBoat";
