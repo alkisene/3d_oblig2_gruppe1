@@ -149,3 +149,44 @@ export function updateCameraControls(delta) {
         controls.update();
     }
 }
+//VR Controller Movement handling
+export function handleControllerMovement(renderer, camera, player, clock) {
+    const session = renderer.xr.getSession();
+    if (!session) return;
+
+    // 3) Frame-rate independent speed
+    const dt = Math.min(clock.getDelta(), 0.05);     // clamp large pauses
+    const speed = 1.0 * (dt * 60);                   // was 0.1; 1.0 ≈ 10x faster at 60fps
+
+    for (const source of session.inputSources) {
+        if (!source.gamepad) continue;
+
+        const gp = source.gamepad;
+
+        let xAxis = 0;
+        let yAxis = 0;
+        const rx = gp.axes[2] ?? 0;
+        const ry = gp.axes[3] ?? 0;
+        const lx = gp.axes[0] ?? 0;
+        const ly = gp.axes[1] ?? 0;
+
+        if (Math.abs(rx) > 0.05 || Math.abs(ry) > 0.05) {
+            xAxis = rx;
+            yAxis = ry;
+        } else if (Math.abs(lx) > 0.05 || Math.abs(ly) > 0.05) {
+            xAxis = lx;
+            yAxis = ly;
+        } else {
+            continue;
+        }
+
+        const forward = new THREE.Vector3();
+        camera.getWorldDirection(forward);
+
+        // Move the rig
+        player.position.addScaledVector(forward, -yAxis * speed);
+
+        const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+        player.position.addScaledVector(right, xAxis * speed);
+    }
+}

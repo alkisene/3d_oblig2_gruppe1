@@ -10,12 +10,12 @@ import {Water} from "three/addons/objects/Water.js";
 import {Sky} from "three/addons/objects/Sky";
 
 import {initRaycast} from "./raycaster.js";
-import {initCameraControls, updateCameraControls} from "./cameraControls.js";
+import {initCameraControls, updateCameraControls, handleControllerMovement} from "./cameraControls.js";
 import {loadAssets} from "./loaders.js";
 import {createLODMesh} from "./LOD.js";
 import {createCelestialEntity} from "./celestialEntity.js";
 import {initTreePlacer, populateTreesRandomly} from "./addTrees";
-
+import {VRButton} from "./VRButton.js";
 
 import { SnowEffect } from './SnowEffect.js';
 import {BOAT_SPEED, followDaBoat, innitDaBoat, updateBoat} from "./daBoat";
@@ -35,7 +35,8 @@ let sun, moon, directionalLight, moonLight, water, sky, fog;
 let raycastHandler;
 let treePlacer;
 let daBoat;
-let clock;
+
+const clock = new THREE.Clock();
 
 const WATER_TIME_SCALE = 1.0;
 const sunColor = new THREE.Color(0xffffff);
@@ -58,6 +59,10 @@ async function init() {
     renderer.samples = Math.min(4, renderer.capabilities.maxSamples)
     renderer.shadowMap.enabled = true;
 
+// Dette er for å ha og aktivere VR
+    document.body.appendChild(VRButton.createButton(renderer));
+    renderer.xr.enabled = true;
+
     const {
         displacementMap,
         diffuseMap,
@@ -71,13 +76,26 @@ async function init() {
     } = await loadAssets(renderer);
 
     ({camera, controls} = initCameraControls(renderer.domElement));
-    clock = new THREE.Clock();
     renderer.setAnimationLoop(animate);
 
     scene = new THREE.Scene();
     sky = new Sky();
     sky.scale.setScalar(450000);
     scene.add(sky);
+    const controller1 = renderer.xr.getController(0);
+    const controller2 = renderer.xr.getController(1);
+    scene.add(controller1);
+    scene.add(controller2);
+    const controllerGrip1 = renderer.xr.getControllerGrip(0);
+    const controllerGrip2 = renderer.xr.getControllerGrip(1);
+    const player = new THREE.Group();
+    player.add(camera);
+    scene.add(player);
+    player.add(controller1);
+    player.add(controller2);
+    player.add(controllerGrip1);
+    player.add(controllerGrip2);
+
 
     const skyUniforms = sky.material.uniforms; // ignore shit works
     skyUniforms['turbidity'].value = 10;
@@ -177,6 +195,16 @@ async function init() {
 
     populateTreesRandomly(500, 3, 5, 2048)
 
+    renderer.xr.addEventListener('sessionstart', () => {
+        controls.enabled = false;
+        player.position.set(0, 0, 150);
+    });
+
+    renderer.xr.addEventListener('sessionend', () => {
+        player.position.set(0, 0, 0);
+        controls.enabled = true;
+    });
+
     window.addEventListener('resize', onWindowResize);
 }
 
@@ -259,6 +287,11 @@ function animate() {
 }
 
 function render(delta) {
+    if(renderer.xr.isPresenting){
+        handleControllerMovement();
+    } else {
+        controls.update();
+    }
     water.material.uniforms['time'].value += delta * WATER_TIME_SCALE; // fart på vatnet
     renderer.render(scene, camera);
 }
