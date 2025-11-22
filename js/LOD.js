@@ -14,7 +14,7 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
         const material = new THREE.MeshStandardMaterial({
             displacementMap: displacementMap,
             displacementScale: 400,
-            displacementBias: -100,
+            displacementBias: -17,
             normalMap: normalMap,
             roughnessMap: roughnessMap,
             metalnessMap: specularMap,
@@ -97,8 +97,8 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
     lowResMesh.receiveShadow = true;
 
     lod.addLevel(highResMesh, 0);
-    lod.addLevel(medResMesh, 2000);
-    lod.addLevel(lowResMesh, 5000);
+    lod.addLevel(medResMesh, 3500);
+    lod.addLevel(lowResMesh,  7500);
 
     scene.add(lod);
     return {lod, highResMesh, medResMesh, lowResMesh};

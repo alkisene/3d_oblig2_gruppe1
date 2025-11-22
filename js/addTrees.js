@@ -155,8 +155,8 @@ function createHeightSampler(displacementMap, lod) {
     const data = ctx.getImageData(0, 0, img.width, img.height).data;
 
     // Try to reuse the material’s displacementScale / Bias so it matches the terrain
-    let displacementScale = 1;
-    let displacementBias  = 0;
+    let displacementScale = 400;
+    let displacementBias  = -17;
 
     // grab first mesh material inside the LOD
     const mesh = lod.children.find(c => c.isMesh);
