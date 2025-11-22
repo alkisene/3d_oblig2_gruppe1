@@ -3,23 +3,42 @@ import {OBJLoader} from "three/addons/loaders/OBJLoader";
 import {MTLLoader} from "three/addons/loaders/MTLLoader";
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
+//let mouse = new THREE.Vector2();
+//let ray = new THREE.Raycaster()
+
 const points = [
-    new THREE.Vector3(-476.72, 1, 782.35),
-    new THREE.Vector3(-1903.91, 1, 1238.57),
-    new THREE.Vector3(-2441.55, 1, 1022.26),
-    new THREE.Vector3(-2398.93, 1, 401.52),
-    new THREE.Vector3(-2515.32, 1, -79.15),
-    new THREE.Vector3(-2420.56, 1, -332.75),
-    new THREE.Vector3(-1923.05, 1, -198.36),
-    new THREE.Vector3(-1802.08, 1, -99.25),
-    new THREE.Vector3(-1547.67, 1, -275.73),
-    new THREE.Vector3(-1206.26, 1, -492.09),
-    new THREE.Vector3(-859.97, 1, -901.63),
-    new THREE.Vector3(-668.55, 1, -740.80),
-    new THREE.Vector3(-234.23, 1, -108.41),
-    new THREE.Vector3(122.95, 1, 395.85),
-    new THREE.Vector3(20.23, 1, 653.94)
+    new THREE.Vector3(284.62, 1, 597.97),
+    new THREE.Vector3(150.22, 1, 379.57),
+    new THREE.Vector3(39.25, 1, 183.05),
+    new THREE.Vector3(-83.53, 1, 36.77),
+    new THREE.Vector3(-212.46, 1, -122.12),
+    new THREE.Vector3(-236.35, 1, -329.33),
+    new THREE.Vector3(-153.18, 1, -487.91),
+    new THREE.Vector3(28.63, 1, -626.46),
+    new THREE.Vector3(262.46, 1, -732.44),
+    new THREE.Vector3(535.77, 1, -818.70),
+    new THREE.Vector3(803.32, 1, -866.35),
+    new THREE.Vector3(1057.64, 1, -905.34),
+    new THREE.Vector3(1335.16, 1, -954.55),
+    new THREE.Vector3(1704.58, 1, -1004.53),
+    new THREE.Vector3(1973.28, 1, -1032.47),
+    new THREE.Vector3(2402.63, 1, -1042.05),
+    new THREE.Vector3(2549.67, 1, -943.03),
+    new THREE.Vector3(2592.04, 1, -636.14),
+    new THREE.Vector3(2601.24, 1, -460.09),
+    new THREE.Vector3(2513.51, 1, -178.73),
+    new THREE.Vector3(2370.40, 1, 95.59),
+    new THREE.Vector3(2179.27, 1, 347.74),
+    new THREE.Vector3(2067.59, 1, 425.39),
+    new THREE.Vector3(1754.91, 1, 649.42),
+    new THREE.Vector3(1516.23, 1, 787.09),
+    new THREE.Vector3(1321.72, 1, 855.42),
+    new THREE.Vector3(1139.48, 1, 908.08),
+    new THREE.Vector3(973.61, 1, 963.22),
+    new THREE.Vector3(787.54, 1, 972.91),
+    new THREE.Vector3(616.41, 1, 974.59),
 ];
+
 
 // --- animation state ---
 let boat = null;
@@ -78,6 +97,26 @@ export async function innitDaBoat({camera, scene, container, lod, displacementMa
 
     // Attach listener
     window.addEventListener("keydown", toggleFollowBoat);
+
+    /*
+    function onDoubleClick(event) {
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+        ray.setFromCamera(mouse, camera);
+        const hits = ray.intersectObject(lod, true); // true = recurse into children
+        if (!hits.length) return;
+
+        const hit = hits[0];            // <- keep the whole intersection
+        const point = hit.point.clone(); // <- clone the Vector3
+
+        console.log(point);
+    }
+
+    container.addEventListener('dblclick', onDoubleClick);
+    return function disposeRaycast() {
+        container.removeEventListener('dblclick', onDoubleClick);
+    }; */
 }
 
 async function spawnDaBoat(scene) {
