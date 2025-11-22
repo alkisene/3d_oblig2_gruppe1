@@ -139,6 +139,9 @@ export function initCameraControls(rendererDom) {
     controls.maxDistance = 100;
     controls.maxPolarAngle = Math.PI;
 
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+
     return {camera, controls};
 }
 
