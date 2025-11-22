@@ -36,6 +36,7 @@ let sun, moon, directionalLight, moonLight, water, sky, fog;
 let raycastHandler;
 let treePlacer;
 let daBoat;
+let player;
 
 const clock = new THREE.Clock();
 
@@ -83,13 +84,16 @@ async function init() {
     sky = new Sky();
     sky.scale.setScalar(450000);
     scene.add(sky);
+
     const controller1 = renderer.xr.getController(0);
     const controller2 = renderer.xr.getController(1);
     scene.add(controller1);
     scene.add(controller2);
+
     const controllerGrip1 = renderer.xr.getControllerGrip(0);
     const controllerGrip2 = renderer.xr.getControllerGrip(1);
-    const player = new THREE.Group();
+
+    player = new THREE.Group();
     player.add(camera);
     scene.add(player);
     player.add(controller1);
@@ -97,6 +101,7 @@ async function init() {
     player.add(controllerGrip1);
     player.add(controllerGrip2);
 
+    player.position.set(0, 0, 0);
 
     const skyUniforms = sky.material.uniforms; // ignore shit works
     skyUniforms['turbidity'].value = 10;
@@ -198,11 +203,9 @@ async function init() {
 
     renderer.xr.addEventListener('sessionstart', () => {
         controls.enabled = false;
-        player.position.set(0, 0, 150);
     });
 
     renderer.xr.addEventListener('sessionend', () => {
-        player.position.set(0, 0, 0);
         controls.enabled = true;
     });
 
@@ -289,7 +292,7 @@ function animate() {
 
 function render(delta) {
     if(renderer.xr.isPresenting){
-        handleControllerMovement();
+        handleControllerMovement(renderer, camera, player, delta);
     } else {
         controls.update();
     }

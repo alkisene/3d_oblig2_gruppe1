@@ -132,13 +132,12 @@ function updateKeyboardMovement(delta) {
 export function initCameraControls(rendererDom) {
     camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
     controls = new OrbitControls(camera, rendererDom);
-    controls.minDistance = 100;
-    controls.maxDistance = 10000;
-    controls.maxPolarAngle = Math.PI / 2;
-    camera.position.set(1500, 900, 1500);
-    controls.target.set(0, 0, 0);
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = false;
+    controls.minDistance = 0;
+    controls.maxDistance = 100;
+    controls.maxPolarAngle = Math.PI;
 
     return {camera, controls};
 }
@@ -150,13 +149,20 @@ export function updateCameraControls(delta) {
     }
 }
 //VR Controller Movement handling
-export function handleControllerMovement(renderer, camera, player, clock) {
+export function handleControllerMovement(renderer, camera, player, delta) {
     const session = renderer.xr.getSession();
-    if (!session) return;
+    if (!session) {
+        console.log("No XR session active");
+        return;
+    }
 
-    // 3) Frame-rate independent speed
-    const dt = Math.min(clock.getDelta(), 0.05);     // clamp large pauses
-    const speed = 1.0 * (dt * 60);                   // was 0.1; 1.0 ≈ 10x faster at 60fps
+    if (session.inputSources.length === 0) {
+        console.log("No input sources detected");
+        return;
+    }
+
+    const dt = Math.min(delta, 0.05);
+    const speed = 1.0 * (dt * 60);
 
     for (const source of session.inputSources) {
         if (!source.gamepad) continue;
@@ -180,13 +186,12 @@ export function handleControllerMovement(renderer, camera, player, clock) {
             continue;
         }
 
-        const forward = new THREE.Vector3();
-        camera.getWorldDirection(forward);
+        camera.getWorldDirection(vForward);
 
         // Move the rig
-        player.position.addScaledVector(forward, -yAxis * speed);
+        player.position.addScaledVector(vForward, -yAxis * speed);
 
-        const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
-        player.position.addScaledVector(right, xAxis * speed);
+        vRight.crossVectors(vForward, camera.up).normalize();
+        player.position.addScaledVector(vRight, xAxis * speed);
     }
 }
