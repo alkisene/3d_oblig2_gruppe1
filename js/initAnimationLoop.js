@@ -2,8 +2,8 @@ const _zeroVec = {};
 import { handleControllerMovement, updateCameraControls } from "./cameraControls.js";
 import { updateCelestialEntities } from "./CelestialEntitiesController.js";
 import { updateBoat, updateCameraFollow } from "./daBoat.js";
+import {updateTreeBillboards} from "./addTrees.js";
 import { WATER_TIME_SCALE } from "./config.js";
-import {updateTreeLODs} from "./GPTTrees.js";
 
 // Factory that returns the animate function to pass to renderer.setAnimationLoop
 export function createAnimate({ clock, sun, moon, directionalLight, moonLight, sky, water, snow, camera, renderer, scene, player, controls, stats }) {
@@ -34,11 +34,8 @@ export function createAnimate({ clock, sun, moon, directionalLight, moonLight, s
         if (water?.material?.uniforms?.time) {
             water.material.uniforms.time.value += delta * WATER_TIME_SCALE;
         }
-        try {
-            updateTreeLODs(camera);
-        } catch (e) {
-            // ignore if tree module isn't initialized yet
-        }
+        // updates tree Billboards to face camera
+        updateTreeBillboards(camera)
 
         renderer.render(scene, camera);
         stats?.update();
