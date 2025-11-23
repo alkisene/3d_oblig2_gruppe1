@@ -5,66 +5,43 @@
 
 import * as THREE from 'three';
 
-import Stats from 'three/addons/libs/stats.module.js';
-import {Water} from "three/addons/objects/Water.js";
-import {Sky} from "three/addons/objects/Sky";
-
+import {worldDepth, worldWidth} from "./config.js";
 import {initRaycast} from "./raycaster.js";
-import {initCameraControls, updateCameraControls, handleControllerMovement} from "./cameraControls.js";
-import {loadAssets} from "./loaders.js";
-import {createLODMesh} from "./LOD.js";
-import {createCelestialEntity} from "./celestialEntity.js";
-import {initTreePlacer, populateTreesRandomly} from "./addTrees";
-import {VRButton} from "three/addons/webxr/VRButton.js";
-
-
-import { SnowEffect } from './SnowEffect.js';
-import {BOAT_SPEED, followDaBoat, innitDaBoat, updateBoat} from "./daBoat";
+import {loadAssets} from "./assetLoaders.js";
+import {createLODMesh, geometryHelper} from "./LOD.js";
+import {initRenderer} from "./initRenderer.js";
+import {initScene} from "./initScene.js";
+import {initEnvironment} from "./initEnvironment.js";
+import {initTerrainLOD} from "./initTerrainLOD.js";
+import {createAnimate} from "./initAnimationLoop.js";
+import {setupResizeHandler} from "./resize.js";
+import {setupUIAndInput} from "./initUIAndInput.js";
 
 let container, stats;
-
+let lod;
 let camera, controls, scene, renderer;
-
-let snow;
-
-let worldWidth = 256;
-let worldDepth = 256;
-
 let mesh;
 let helper;
-let sun, moon, directionalLight, moonLight, water, sky, fog;
+let sun, moon, directionalLight, moonLight, water, sky, snow;
 let raycastHandler;
-let treePlacer;
-let daBoat;
-let player;
-
+const player = new THREE.Group();
 const clock = new THREE.Clock();
+let ambient;
 
-const WATER_TIME_SCALE = 1.0;
-const sunColor = new THREE.Color(0xffffff);
-const moonColor = new THREE.Color(0x88aaff);
-init().catch(err => console.error(err));
+bootstrap().catch(err => console.error(err));
 
-async function init() {
-    container = document.getElementById('container');
-    container.innerHTML = '';
+async function bootstrap() {
+    // 1) renderer + camera + DOM
+    ({renderer, camera, container} = await initRenderer());
 
-    renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        powerPreference: 'high-performance',
-    });
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    container.appendChild(renderer.domElement);
+    // 2) create scene + stats
+    ({scene, stats, ambient} = initScene({container}));
 
-    // bruker MSAA 4x eller det høyeste tilgjengelig.
-    renderer.samples = Math.min(4, renderer.capabilities.maxSamples)
-    renderer.shadowMap.enabled = true;
+    // 3) setup UI + input (pass renderer, camera, scene, player)
+    controls = setupUIAndInput(renderer, camera, scene, player);
 
-// Dette er for å ha og aktivere VR
-    document.body.appendChild(VRButton.createButton(renderer));
-    renderer.xr.enabled = true;
-
+    // 4) load assets (textures)
+    const assets = await loadAssets(renderer);
     const {
         displacementMap,
         diffuseMap,
@@ -75,227 +52,41 @@ async function init() {
         sunTexture,
         moonTexture,
         snowTexture
-    } = await loadAssets(renderer);
+    } = assets;
 
-    ({camera, controls} = initCameraControls(renderer.domElement));
+    // 5) environment
+    ({sun, moon, directionalLight, moonLight, sky, water, snow} =
+        initEnvironment(scene, waterNormalMap, sunTexture, moonTexture, snowTexture));
+
+    // 6) terrain + LOD (pass camera & container so tree/boat modules can attach)
+    ({
+        mesh,
+        lod,
+        helper
+    } = initTerrainLOD(scene, camera, container, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, snowTexture, createLODMesh, geometryHelper, worldWidth, worldDepth));
+
+    // 7) raycast helper (use the helper returned from terrain)
+    raycastHandler = initRaycast({camera, renderer, lod, helper, container});
+
+    // 8) create animate function and start loop
+    const animate = createAnimate({
+        clock,
+        sun,
+        moon,
+        directionalLight,
+        moonLight,
+        sky,
+        water,
+        snow,
+        camera,
+        renderer,
+        scene,
+        player,
+        controls,
+        stats
+    });
     renderer.setAnimationLoop(animate);
 
-    scene = new THREE.Scene();
-    sky = new Sky();
-    sky.scale.setScalar(450000);
-    scene.add(sky);
-
-    const controller1 = renderer.xr.getController(0);
-    const controller2 = renderer.xr.getController(1);
-    scene.add(controller1);
-    scene.add(controller2);
-
-    const controllerGrip1 = renderer.xr.getControllerGrip(0);
-    const controllerGrip2 = renderer.xr.getControllerGrip(1);
-
-    player = new THREE.Group();
-    player.add(camera);
-    scene.add(player);
-    player.add(controller1);
-    player.add(controller2);
-    player.add(controllerGrip1);
-    player.add(controllerGrip2);
-
-    player.position.set(0, 0, 0);
-
-    const skyUniforms = sky.material.uniforms; // ignore shit works
-    skyUniforms['turbidity'].value = 10;
-    skyUniforms['rayleigh'].value = 3;
-    skyUniforms['mieCoefficient'].value = 0.005;
-    skyUniforms['mieDirectionalG'].value = 0.7;
-
-    directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.castShadow = true;
-
-    directionalLight.shadow.mapSize.width = 4096;  // Higher resolution shadows
-    directionalLight.shadow.mapSize.height = 4096;
-    const d = 4000; // Terrain is 7500, so 4000 radius covers it
-    directionalLight.shadow.camera.left = -d;
-    directionalLight.shadow.camera.right = d;
-    directionalLight.shadow.camera.top = d;
-    directionalLight.shadow.camera.bottom = -d;
-    directionalLight.shadow.camera.near = 0.5;
-    directionalLight.shadow.camera.far = 15000; // Needs to reach from sky to ground
-    directionalLight.shadow.bias = -0.0005;     // Reduces shadow "acne"
-
-    directionalLight.position.set(5000, 5000, 2000);
-    scene.add(directionalLight);
-
-    sun = createCelestialEntity(scene, sunTexture, 100, 32, 32, 3000, 5000, 2000);
-    directionalLight.position.copy(sun.position);
-
-    moon = createCelestialEntity(scene, moonTexture, 150, 32, 32, 3000, 5000, 2000);
-
-    moonLight = new THREE.DirectionalLight(moonColor, 0.0);
-    moonLight.castShadow = true;
-
-    moonLight.shadow.mapSize.width = 4096;
-    moonLight.shadow.mapSize.height = 4096;
-    moonLight.shadow.camera.left = -d;
-    moonLight.shadow.camera.right = d;
-    moonLight.shadow.camera.top = d;
-    moonLight.shadow.camera.bottom = -d;
-    moonLight.shadow.camera.near = 0.5;
-    moonLight.shadow.camera.far = 15000;
-    moonLight.shadow.bias = -0.0005;
-
-    moonLight.position.copy(moon.position);
-    scene.add(moonLight);
-
-
-    snow = new SnowEffect({
-        scene: scene,
-        count: 20000,
-        size: 130,
-        radius: 2,
-        areaScale: 20,
-        snowFallSpeed: 1
-    });
-    snow.points.frustumCulled = false; // default køllingen lager hull i snøen...finnes sikkert en bedre løsning
-
-
-    const {
-        lod,
-        highResMesh
-    } = createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth, snowTexture);
-
-    const waterGeometry = new THREE.PlaneGeometry(7500, 7500);
-    const sunDirection = new THREE.Vector3(3000, 5000, 2000).normalize();
-
-    fog = new THREE.Fog(scene.background, 2000, 7500);
-    scene.fog = fog;
-
-    water = new Water(waterGeometry, {
-        textureHeight: 2048,
-        textureWidth: 2048,
-        waterNormals: waterNormalMap,
-        sunDirection: sunDirection,
-        sunColor: 0xffffff,
-        waterColor: 0x001e0f,
-        distortionScale: 3.7,
-        fog: scene.fog !== undefined
-    });
-    water.rotateX(-Math.PI / 2);
-    water.position.y = 0;
-    scene.add(water);
-
-    mesh = highResMesh;
-
-    const geometryHelper = new THREE.ConeGeometry(20, 100, 3);
-    geometryHelper.translate(0, 50, 0);
-    geometryHelper.rotateX(Math.PI / 2);
-    helper = new THREE.Mesh(geometryHelper, new THREE.MeshNormalMaterial());
-    scene.add(helper);
-
-    raycastHandler = initRaycast({camera, renderer, lod, helper, container});
-    stats = new Stats();
-    container.appendChild(stats.dom);
-
-    treePlacer = initTreePlacer({camera, scene, container, lod, displacementMap});
-    daBoat = innitDaBoat({camera, scene, container, lod, displacementMap});
-
-    populateTreesRandomly(500, 3, 5, 2048)
-
-    renderer.xr.addEventListener('sessionstart', () => {
-        controls.enabled = false;
-    });
-
-    renderer.xr.addEventListener('sessionend', () => {
-        controls.enabled = true;
-    });
-
-    window.addEventListener('resize', onWindowResize);
-}
-
-function onWindowResize() {
-
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
-let old_camera_pos = null;
-let justToggled = true;
-let boat_pos = null;
-function animate() {
-    const delta = clock.getDelta();
-    const time = Date.now() * 0.0001;
-
-    updateCameraControls(delta);
-
-    // Sun orbit
-    sun.position.x = Math.cos(time) * 5000;
-    sun.position.y = Math.sin(time) * 3000 + 2000;
-    sun.position.z = 2000;
-
-    // Moon 180° out of phase so it rises as the sun sets
-    const moonPhase = time + Math.PI;
-    moon.position.x = Math.cos(moonPhase) * 5000;
-    moon.position.y = Math.sin(moonPhase) * 3000 + 2000;
-    moon.position.z = 2000;
-
-    // Keep directional light following the sun
-    directionalLight.position.copy(sun.position);
-    moonLight.position.copy(moon.position);
-    sky.material.uniforms['sunPosition'].value.copy(sun.position);
-
-
-    // Adjust moonlight intensity based on sun height
-    const nightFactor = THREE.MathUtils.clamp(1 - (sun.position.y / 2000), 0, 1);
-    moonLight.intensity = 0.3 * nightFactor;
-
-// Adjust water color between sun and moon
-    water.material.uniforms.sunColor.value
-        .copy(sunColor)
-        .lerp(moonColor, nightFactor);
-
-// Compute a blended light direction for the water
-    const sunDir  = sun.position.clone().normalize();
-    const moonDir = moon.position.clone().normalize();
-
-// nightFactor = 0  → pure sun direction
-// nightFactor = 1  → pure moon direction
-    const waterDir = sunDir.lerp(moonDir, nightFactor).normalize();
-    water.material.uniforms.sunDirection.value.copy(waterDir);
-
-    // snow
-    snow.update();
-
-    /*followDaBoat,
-    updateBoat,
-    BOAT_SPEED,
-    points*/
-
-    boat_pos = updateBoat(delta);
-
-    if(followDaBoat && boat_pos) {
-        if(justToggled) {
-            old_camera_pos = camera.position.clone();
-            justToggled = false;
-        }
-        camera.position.set(boat_pos.x, boat_pos.y+18, boat_pos.z);
-    } else {
-        if(!justToggled && old_camera_pos) {
-            justToggled = true;
-            camera.position.set(old_camera_pos.x, old_camera_pos.y, old_camera_pos.z);
-        }
-    }
-
-    render(delta);
-    stats.update();
-}
-
-function render(delta) {
-    if(renderer.xr.isPresenting){
-        handleControllerMovement(renderer, camera, player, delta);
-    } else {
-        controls.update();
-    }
-    water.material.uniforms['time'].value += delta * WATER_TIME_SCALE; // fart på vatnet
-    renderer.render(scene, camera);
+    // 9) resize handler
+    setupResizeHandler(renderer, camera);
 }

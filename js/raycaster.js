@@ -1,5 +1,3 @@
-// javascript
-// js/raycast.js
 import * as THREE from 'three';
 
 let raycaster = new THREE.Raycaster();
@@ -26,7 +24,8 @@ export function initRaycast({camera, renderer, lod, helper, container}) { //Burd
         if (currentLevelIndex === -1) return;
 
         const currentMesh = lod.children[currentLevelIndex];
-        const intersects = raycaster.intersectObject(currentMesh);
+        if (!currentMesh) return;
+        const intersects = raycaster.intersectObject(currentMesh, false);
 
         if (intersects.length > 0) {
             helper.position.set(0, 0, 0);

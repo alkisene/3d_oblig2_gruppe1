@@ -1,7 +1,6 @@
-// File: js/LOD.js
 import * as THREE from 'three';
 
-// Note: We keep 'snowTexture' in the arguments list
+
 export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, worldWidth, worldDepth, snowTexture) {
     const lod = new THREE.LOD();
 
@@ -24,8 +23,8 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
 
         material.onBeforeCompile = (shader) => {
             // 1. Pass our textures to the shader
-            shader.uniforms.uSnowTexture = { value: snowTexture };
-            shader.uniforms.uHeightMap = { value: displacementMap };
+            shader.uniforms.uSnowTexture = {value: snowTexture};
+            shader.uniforms.uHeightMap = {value: displacementMap};
 
             // 2. Inject Uniforms safely at the top
             shader.fragmentShader = shader.fragmentShader.replace(
@@ -98,8 +97,15 @@ export function createLODMesh(scene, displacementMap, diffuseMap, normalMap, rou
 
     lod.addLevel(highResMesh, 0);
     lod.addLevel(medResMesh, 3500);
-    lod.addLevel(lowResMesh,  7500);
+    lod.addLevel(lowResMesh, 7500);
 
     scene.add(lod);
     return {lod, highResMesh, medResMesh, lowResMesh};
+}
+
+export function geometryHelper() {
+    const geometryHelper = new THREE.ConeGeometry(20, 100, 3);
+    geometryHelper.translate(0, 50, 0);
+    geometryHelper.rotateX(Math.PI / 2);
+    return new THREE.Mesh(geometryHelper, new THREE.MeshNormalMaterial());
 }

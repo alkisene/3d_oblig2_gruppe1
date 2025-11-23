@@ -81,7 +81,7 @@ export class SnowEffect {
         this.areaScale = areaScale;
         this.snowFallSpeed = snowFallSpeed;
 
-        this.params = { size, radius, simple };
+        this.params = {size, radius, simple};
 
         const baseArea = 7.0;
         const area = baseArea * areaScale;
@@ -103,13 +103,13 @@ export class SnowEffect {
 
         this.material = new THREE.ShaderMaterial({
             uniforms: {
-                uTime: { value: 0 },
-                uPixelRatio: { value: Math.min(window.devicePixelRatio, 2) },
-                uSize: { value: size },
-                uRadius: { value: radius },
-                uArea: { value: shaderArea },
-                uTexture: { value: texture || new THREE.Texture() },
-                uSimple: { value: simple }
+                uTime: {value: 0},
+                uPixelRatio: {value: Math.min(window.devicePixelRatio, 2)},
+                uSize: {value: size},
+                uRadius: {value: radius},
+                uArea: {value: shaderArea},
+                uTexture: {value: texture || new THREE.Texture()},
+                uSimple: {value: simple}
             },
             vertexShader,
             fragmentShader,
@@ -133,15 +133,24 @@ export class SnowEffect {
     }
 
     // Controls
-    setSize(v) { this.material.uniforms.uSize.value = v; }
-    setWind(v) { this.material.uniforms.uRadius.value = v; }
+    setSize(v) {
+        this.material.uniforms.uSize.value = v;
+    }
+
+    setWind(v) {
+        this.material.uniforms.uRadius.value = v;
+    }
+
     setAreaScale(v) {
         this.areaScale = v;
         const baseArea = 7.0;
         const shaderOverlap = 1.05;
         this.material.uniforms.uArea.value = baseArea * v * shaderOverlap;
     }
-    setSimple(v) { this.material.uniforms.uSimple.value = v; }
+
+    setSimple(v) {
+        this.material.uniforms.uSimple.value = v;
+    }
 
     dispose() {
         this.points.geometry.dispose();

@@ -129,29 +129,46 @@ function updateKeyboardMovement(delta) {
     if (camera.position.y < 40) camera.position.y = 45;
 }
 
-export function initCameraControls(rendererDom) {
-    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 20000);
-    controls = new OrbitControls(camera, rendererDom);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
-    controls.minDistance = 0;
-    controls.maxDistance = 100;
-    controls.maxPolarAngle = Math.PI;
+export function initCamera() {
+    camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 10, 5500);
+    camera.position.set(550, 480, 2250);
+    camera.lookAt(0, 0, 0);
+    return camera;
+}
 
+export function initControls(cam, rendererDom) {
+    camera = cam || camera;
+    controls = new OrbitControls(camera, rendererDom);
+    controls.minDistance = 100;
+    controls.maxDistance = 50000;
+    controls.maxPolarAngle = Math.PI;
     window.addEventListener('keydown', onKeyDown);
     window.addEventListener('keyup', onKeyUp);
-
-    return {camera, controls};
+    return controls;
 }
 
 export function updateCameraControls(delta) {
-    if (controls && camera) {
-        updateKeyboardMovement(delta);
-        controls.update();
+    if (!controls || !camera) return;
+    if (!controls.enabled) return;
+
+    const isMoving =
+        move.forward || move.backward ||
+        move.left || move.right ||
+        move.up || move.down;
+
+    if (!isMoving && !controls.enableDamping) {
+        return; // nothing to do
     }
+    if (isMoving) {
+        updateKeyboardMovement(delta);
+    }
+    controls.update();
 }
+
 //VR Controller Movement handling
+const forward = new THREE.Vector3();
+const right = new THREE.Vector3();
+
 export function handleControllerMovement(renderer, camera, player, delta) {
     const session = renderer.xr.getSession();
     if (!session) {
@@ -188,13 +205,40 @@ export function handleControllerMovement(renderer, camera, player, delta) {
         } else {
             continue;
         }
-
-        camera.getWorldDirection(vForward);
+        camera.getWorldDirection(forward);
 
         // Move the rig
-        player.position.addScaledVector(vForward, -yAxis * speed);
+        player.position.addScaledVector(forward, -yAxis * speed);
 
-        vRight.crossVectors(vForward, camera.up).normalize();
-        player.position.addScaledVector(vRight, xAxis * speed);
+        right.crossVectors(forward, camera.up).normalize();
+        player.position.addScaledVector(right, xAxis * speed);
     }
+}
+
+export function initVRControllers(renderer, scene, camera, player) {
+    const controller1 = renderer.xr.getController(0);
+    const controller2 = renderer.xr.getController(1);
+    scene.add(controller1);
+    scene.add(controller2);
+
+    const controllerGrip1 = renderer.xr.getControllerGrip(0);
+    const controllerGrip2 = renderer.xr.getControllerGrip(1);
+
+    player.add(camera);
+    scene.add(player);
+    player.add(controller1);
+    player.add(controller2);
+    player.add(controllerGrip1);
+    player.add(controllerGrip2);
+    player.position.set(0, 0, 0);
+
+    renderer.xr.addEventListener('sessionstart', () => {
+        controls.enabled = false;
+        player.position.set(0, 50, 150);
+    });
+
+    renderer.xr.addEventListener('sessionend', () => {
+        player.position.set(0, 0, 0);
+        controls.enabled = true;
+    });
 }

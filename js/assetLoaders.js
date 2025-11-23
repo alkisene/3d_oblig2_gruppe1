@@ -37,5 +37,15 @@ export async function loadAssets(renderer) {
     waterNormalMap.wrapS = THREE.RepeatWrapping;
     waterNormalMap.wrapT = THREE.RepeatWrapping;
 
-    return {displacementMap, diffuseMap, normalMap, roughnessMap, specularMap, waterNormalMap, sunTexture, moonTexture, snowTexture};
+    return {
+        displacementMap,
+        diffuseMap,
+        normalMap,
+        roughnessMap,
+        specularMap,
+        waterNormalMap,
+        sunTexture,
+        moonTexture,
+        snowTexture
+    };
 }

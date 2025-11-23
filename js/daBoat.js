@@ -3,6 +3,8 @@ import {OBJLoader} from "three/addons/loaders/OBJLoader";
 import {MTLLoader} from "three/addons/loaders/MTLLoader";
 import {TGALoader} from 'three/addons/loaders/TGALoader.js';
 
+let old_camera_pos = null;
+let justToggled = true;
 //let mouse = new THREE.Vector2();
 //let ray = new THREE.Raycaster()
 
@@ -57,7 +59,7 @@ const mtlLoader = new MTLLoader();
 const tgaLoader = new TGALoader();
 
 const boatDiffuse = tgaLoader.load('asset/Boat/Texture/boat_d.tga');
-const boatNormal  = tgaLoader.load('asset/Boat/Texture/boat_n.tga');
+const boatNormal = tgaLoader.load('asset/Boat/Texture/boat_n.tga');
 
 // Make the color texture use sRGB so it looks right
 boatDiffuse.colorSpace = THREE.SRGBColorSpace;
@@ -145,7 +147,7 @@ async function spawnDaBoat(scene) {
         lookAtNextPoint();
 
         scene.add(boat);
-    }  catch (err) {
+    } catch (err) {
         console.error("spawnTree: failed to load tree LODs", err);
     }
 }
@@ -230,7 +232,6 @@ function lookAtNextPoint() {
 }
 
 
-
 const _dir = new THREE.Vector3(); // reuse to avoid allocs
 
 function updateBoat(deltaSeconds) {
@@ -278,3 +279,22 @@ export {
     BOAT_SPEED,
     points
 };
+
+export function updateCameraFollow(boatPos, camera) {
+    const isFollowing = Boolean(followDaBoat && boatPos);
+
+    if (isFollowing) {
+        if (justToggled) {
+            old_camera_pos = camera.position.clone(); // clone only once when toggling
+            justToggled = false;
+        }
+        const {x, y, z} = boatPos;
+        camera.position.set(x, y + 18, z);
+        return;
+    }
+
+    if (!justToggled && old_camera_pos) {
+        justToggled = true;
+        camera.position.copy(old_camera_pos);
+    }
+}

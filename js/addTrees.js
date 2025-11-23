@@ -7,17 +7,17 @@ const ray = new THREE.Raycaster();
 
 const objLoader = new OBJLoader()
 const mtlLoader = new MTLLoader();
-let treeTemplate= null, treeTemplateMid = null, treeTemplateLow = null; // cached, textured model
+let treeTemplate = null, treeTemplateMid = null, treeTemplateLow = null; // cached, textured model
 // let materialsLoaded = false;
 
 const treePlacerState = {
     scene: null,
-    lod:   null,
+    lod: null,
     sampleHeight: null,
     bbox: null,
 };
 
-export function initTreePlacer({camera, scene, container, lod, displacementMap}){
+export function initTreePlacer({camera, scene, container, lod, displacementMap}) {
 
     if (!lod) {
         console.error("initTreePlacer: lod is undefined");
@@ -49,7 +49,7 @@ export function initTreePlacer({camera, scene, container, lod, displacementMap})
 
         if (hit.uv) {
             const height = sampleHeight(hit.uv);
-            if(height < 5 || height > 30) { // We don't place trees too near the shore or in water
+            if (height < 5 || height > 30) { // We don't place trees too near the shore or in water
                 return;
             }
             point.y = height - 1;
@@ -143,7 +143,6 @@ function spawnTree(point, scene) {
 }
 
 
-
 // --- create a sampler from the displacement map ---
 function createHeightSampler(displacementMap, lod) {
     const img = displacementMap.image;
@@ -156,7 +155,7 @@ function createHeightSampler(displacementMap, lod) {
 
     // Try to reuse the material’s displacementScale / Bias so it matches the terrain
     let displacementScale = 400;
-    let displacementBias  = -17;
+    let displacementBias = -17;
 
     // grab first mesh material inside the LOD
     const mesh = lod.children.find(c => c.isMesh);
@@ -164,13 +163,13 @@ function createHeightSampler(displacementMap, lod) {
         const mat = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
         if (mat) {
             if (typeof mat.displacementScale === "number") displacementScale = mat.displacementScale;
-            if (typeof mat.displacementBias  === "number") displacementBias  = mat.displacementBias;
+            if (typeof mat.displacementBias === "number") displacementBias = mat.displacementBias;
         }
     }
 
     return function sampleHeight(uv) {
         // uv from raycaster: (0,0) bottom-left, (1,1) top-right
-        const x = Math.min(img.width  - 1, Math.max(0, Math.floor(uv.x * img.width)));
+        const x = Math.min(img.width - 1, Math.max(0, Math.floor(uv.x * img.width)));
         const y = Math.min(img.height - 1, Math.max(0, Math.floor((1 - uv.y) * img.height))); // flip Y
 
         const i = (y * img.width + x) * 4;
@@ -191,7 +190,7 @@ export function populateTreesRandomly(
     personalSpace = 25,
     gridResolution = 256
 ) {
-    const { scene, lod, sampleHeight, bbox } = treePlacerState;
+    const {scene, lod, sampleHeight, bbox} = treePlacerState;
 
     if (!scene || !lod || !sampleHeight || !bbox) {
         console.error("populateTreesRandomly: tree placer not initialized yet");
@@ -202,8 +201,8 @@ export function populateTreesRandomly(
     const GRID_ROWS = gridResolution;
 
     // Compute world size of each grid cell
-    const width  = bbox.max.x - bbox.min.x;
-    const depth  = bbox.max.z - bbox.min.z; // can be negative, we'll use abs below
+    const width = bbox.max.x - bbox.min.x;
+    const depth = bbox.max.z - bbox.min.z; // can be negative, we'll use abs below
     const cellSizeX = width / GRID_COLS;
     const cellSizeZ = Math.abs(depth) / GRID_ROWS;
     const cellWorldSize = Math.max(cellSizeX, cellSizeZ);
@@ -224,7 +223,7 @@ export function populateTreesRandomly(
         for (let j = 0; j < GRID_ROWS; j++) {
             const v = (j + 0.5) / GRID_ROWS;
 
-            const height = sampleHeight({ x: u, y: v });
+            const height = sampleHeight({x: u, y: v});
             if (height <= 5 || height >= 200) {
                 grid[i][j] = null;
                 continue;
@@ -243,7 +242,7 @@ export function populateTreesRandomly(
                 j,
                 listIndex: validCells.length,
             };
-            validCells.push({ i, j });
+            validCells.push({i, j});
         }
     }
 
@@ -279,7 +278,7 @@ export function populateTreesRandomly(
             validCells.length > 0
             ) {
             const randIndex = Math.floor(Math.random() * validCells.length);
-            const { i, j } = validCells[randIndex];
+            const {i, j} = validCells[randIndex];
             const cell = grid[i][j];
 
             if (!cell || !cell.valid) {
