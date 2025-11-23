@@ -1,12 +1,10 @@
 import * as THREE from "three";
-import {OBJLoader} from "three/addons/loaders/OBJLoader";
-import {MTLLoader} from "three/addons/loaders/MTLLoader";
-import {TGALoader} from 'three/addons/loaders/TGALoader.js';
+import { OBJLoader } from "three/addons/loaders/OBJLoader";
+import { MTLLoader } from "three/addons/loaders/MTLLoader";
+import { TGALoader } from "three/addons/loaders/TGALoader.js";
 
 let old_camera_pos = null;
 let justToggled = true;
-//let mouse = new THREE.Vector2();
-//let ray = new THREE.Raycaster()
 
 const points = [
     new THREE.Vector3(284.62, 1, 597.97),
@@ -41,119 +39,62 @@ const points = [
     new THREE.Vector3(616.41, 1, 974.59),
 ];
 
-
-// --- animation state ---
-let boat = null;
-let currentIndex = 0;
-let nextIndex = 1;
+// =====================================================
+// Boat / path globals
+// =====================================================
 
 // Units per second (world units)
 let BOAT_SPEED = 80;
 
-// world units in XZ plane where we start blending the turn
-const TURN_DISTANCE = 80;
-
-
-const objLoader = new OBJLoader()
+const objLoader = new OBJLoader();
 const mtlLoader = new MTLLoader();
 const tgaLoader = new TGALoader();
 
-const boatDiffuse = tgaLoader.load('asset/Boat/Texture/boat_d.tga');
-const boatNormal = tgaLoader.load('asset/Boat/Texture/boat_n.tga');
+const boatDiffuse = tgaLoader.load("asset/Boat/Texture/boat_d.tga");
+const boatNormal = tgaLoader.load("asset/Boat/Texture/boat_n.tga");
 
 // Make the color texture use sRGB so it looks right
 boatDiffuse.colorSpace = THREE.SRGBColorSpace;
 boatDiffuse.needsUpdate = true;
 
-
 let followDaBoat = false;
+let boat = null;
 
-// Helper
+// Single smooth closed curve through all points
+let boatCurve = null;
+let boatCurveLength = 0;
+let boatDistanceAlong = 0;
+
+// Temp vectors reused every frame
+const _tmpTangent = new THREE.Vector3();
+const _tmpLookTarget = new THREE.Vector3();
+
+// =====================================================
+// Helpers
+// =====================================================
+
+function buildBoatCurve() {
+    if (points.length < 2) {
+        console.warn("Not enough points to build boat curve");
+        boatCurve = null;
+        boatCurveLength = 0;
+        return;
+    }
+
+    // Smooth, closed Catmull–Rom curve
+    boatCurve = new THREE.CatmullRomCurve3(points, true, "catmullrom", 0.2);
+    boatCurveLength = boatCurve.getLength();
+    boatDistanceAlong = 0;
+}
+
 function loadOBJPromise(filename) {
     return new Promise((resolve, reject) => {
         objLoader.load(filename, resolve, undefined, reject);
     });
 }
 
-export async function innitDaBoat({camera, scene, container, lod, displacementMap}) {
-
-    if (!lod) {
-        console.error("initDaBoat: lod is undefined");
-        return;
-    }
-    if (!displacementMap || !displacementMap.image) {
-        console.error("initDaBoat: displacementMap/image not ready");
-        return;
-    }
-
-    await spawnDaBoat(scene)
-
-    // Listen for key presses
-    function toggleFollowBoat(event) {
-        // Only toggle on the "b" or "B" key
-        if (event.key === "b" || event.key === "B") {
-            followDaBoat = !followDaBoat;
-            console.log("followDaBoat:", followDaBoat);
-        }
-    }
-
-    // Attach listener
-    window.addEventListener("keydown", toggleFollowBoat);
-
-    /*
-    function onDoubleClick(event) {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-        ray.setFromCamera(mouse, camera);
-        const hits = ray.intersectObject(lod, true); // true = recurse into children
-        if (!hits.length) return;
-
-        const hit = hits[0];            // <- keep the whole intersection
-        const point = hit.point.clone(); // <- clone the Vector3
-
-        console.log(point);
-    }
-
-    container.addEventListener('dblclick', onDoubleClick);
-    return function disposeRaycast() {
-        container.removeEventListener('dblclick', onDoubleClick);
-    }; */
-}
-
-async function spawnDaBoat(scene) {
-    try {
-        mtlLoader.setPath(`asset/Boat/OBJ/`);
-        mtlLoader.setResourcePath(`asset/Boat/OBJ/`);
-        const materials = await new Promise((res, rej) =>
-            mtlLoader.load(`boat.mtl`, res, undefined, rej)
-        );
-        materials.preload();
-        objLoader.setMaterials(materials);
-        objLoader.setPath(`asset/Boat/OBJ/`)
-
-        const highObj = await Promise.all([
-            loadOBJPromise(`boat.obj`)
-        ]);
-
-        // Use createObjectLOD helper to assemble LOD
-        boat = highObj[0];
-
-        applyBoatMaterial(boat);
-
-        boat.position.copy(points[0]);
-        boat.scale.setScalar(0.3);
-
-        lookAtNextPoint();
-
-        scene.add(boat);
-    } catch (err) {
-        console.error("spawnTree: failed to load tree LODs", err);
-    }
-}
-
-function applyBoatMaterial(boat) {
-    boat.traverse((child) => {
+function applyBoatMaterial(boatObject) {
+    boatObject.traverse((child) => {
         if (child.isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
@@ -162,7 +103,7 @@ function applyBoatMaterial(boat) {
                 map: boatDiffuse,
                 normalMap: boatNormal,
                 metalness: 0.1,
-                roughness: 0.8
+                roughness: 0.8,
             });
 
             if (child.material.map) {
@@ -173,112 +114,123 @@ function applyBoatMaterial(boat) {
     });
 }
 
-function lookAtNextPoint() {
-    if (!boat) return;
+async function spawnDaBoat(scene) {
+    try {
+        if (!boatCurve) {
+            buildBoatCurve();
+        }
 
-    const from = boat.position;
-    const currentTarget = points[nextIndex];
-    const nextNextIndex = (nextIndex + 1) % points.length;
-    const nextNextTarget = points[nextNextIndex];
+        mtlLoader.setPath("asset/Boat/OBJ/");
+        mtlLoader.setResourcePath("asset/Boat/OBJ/");
 
-    // Distance in XZ plane to the current target
-    const dx = currentTarget.x - from.x;
-    const dz = currentTarget.z - from.z;
-    const distXZ = Math.hypot(dx, dz);
-
-    let lookTarget;
-
-    if (distXZ < TURN_DISTANCE) {
-        // --- Blend direction between currentTarget and nextNextTarget ---
-
-        // Direction from boat to current target (flattened to XZ)
-        const dirToCurrent = new THREE.Vector3(
-            currentTarget.x - from.x,
-            0,
-            currentTarget.z - from.z
-        ).normalize();
-
-        // Direction of the *next* segment (from current target to next-next target)
-        const dirToNextSegment = new THREE.Vector3(
-            nextNextTarget.x - currentTarget.x,
-            0,
-            nextNextTarget.z - currentTarget.z
-        ).normalize();
-
-        // t = 0 when we're TURN_DISTANCE away, t = 1 when we're on the waypoint
-        const t = THREE.MathUtils.clamp(1 - distXZ / TURN_DISTANCE, 0, 1);
-
-        // Blend directions
-        const blendedDir = dirToCurrent
-            .multiplyScalar(1 - t)
-            .add(dirToNextSegment.multiplyScalar(t))
-            .normalize();
-
-        // Our look target is "forward" in that blended direction
-        lookTarget = new THREE.Vector3(
-            from.x + blendedDir.x,
-            from.y,             // keep boat level
-            from.z + blendedDir.z
+        const materials = await new Promise((res, rej) =>
+            mtlLoader.load("boat.mtl", res, undefined, rej)
         );
-    } else {
-        // --- Far from the corner: just look at the current target in XZ ---
-        lookTarget = new THREE.Vector3(currentTarget.x, from.y, currentTarget.z);
+        materials.preload();
+        objLoader.setMaterials(materials);
+        objLoader.setPath("asset/Boat/OBJ/");
+
+        const loadedObj = await loadOBJPromise("boat.obj");
+        boat = loadedObj;
+
+        applyBoatMaterial(boat);
+
+        boat.scale.setScalar(0.3);
+
+        // Start the boat on the curve
+        if (boatCurve && boatCurveLength > 0) {
+            // start at beginning of curve
+            const t = 0;
+            boatCurve.getPoint(t, boat.position);
+
+            boatCurve.getTangent(t, _tmpTangent);
+            _tmpTangent.y = 0;
+            if (_tmpTangent.lengthSq() > 1e-6) {
+                _tmpTangent.normalize();
+                _tmpLookTarget.copy(boat.position).add(_tmpTangent);
+                boat.lookAt(_tmpLookTarget);
+                // model correction so its "forward" matches the math
+                boat.rotateY(-Math.PI / 2);
+            }
+        } else if (points.length > 0) {
+            boat.position.copy(points[0]);
+        }
+
+        scene.add(boat);
+    } catch (err) {
+        console.error("spawnDaBoat: failed to load boat", err);
     }
-
-    boat.lookAt(lookTarget);
-
-    // Rotate 90 degrees clockwise around Y so the model’s forward matches our look direction
-    boat.rotateY(-Math.PI / 2);
 }
 
+// =====================================================
+// Public API
+// =====================================================
 
-const _dir = new THREE.Vector3(); // reuse to avoid allocs
+export async function innitDaBoat({ camera, scene, container, lod, displacementMap }) {
+    if (!lod) {
+        console.error("initDaBoat: lod is undefined");
+        return;
+    }
+    if (!displacementMap || !displacementMap.image) {
+        console.error("initDaBoat: displacementMap/image not ready");
+        return;
+    }
 
-function updateBoat(deltaSeconds) {
+    // Build the curve and spawn the boat
+    buildBoatCurve();
+    await spawnDaBoat(scene);
+
+    // Listen for key presses (B to toggle follow)
+    function toggleFollowBoat(event) {
+        if (event.key === "b" || event.key === "B") {
+            followDaBoat = !followDaBoat;
+            console.log("followDaBoat:", followDaBoat);
+        }
+    }
+
+    window.addEventListener("keydown", toggleFollowBoat);
+
+    // If you ever want cleanup:
+    // return () => window.removeEventListener("keydown", toggleFollowBoat);
+}
+
+export function updateBoat(deltaSeconds) {
     if (!boat) return null;
-    if (points.length < 2) return boat.position;
 
-    const currentTarget = points[nextIndex];
-
-    // Direction from current position to target
-    _dir.subVectors(currentTarget, boat.position);
-    const distanceToTarget = _dir.length();
-
-    if (distanceToTarget === 0) {
-        advanceToNextPoint();
-        return boat.position;    // <--- return something valid
+    if (!boatCurve || boatCurveLength <= 0) {
+        buildBoatCurve();
+        if (!boatCurve || boatCurveLength <= 0) {
+            return boat.position;
+        }
     }
 
-    _dir.normalize();
+    // Advance along the curve at roughly constant speed
+    const distanceThisFrame = BOAT_SPEED * deltaSeconds;
+    boatDistanceAlong = (boatDistanceAlong + distanceThisFrame) % boatCurveLength;
 
-    const maxMove = BOAT_SPEED * deltaSeconds;
+    const u = boatDistanceAlong / boatCurveLength; // 0..1
+    const t = boatCurve.getUtoTmapping(u); // map arc length fraction → param
 
-    if (maxMove >= distanceToTarget) {
-        // We would overshoot: snap to target and go to next point
-        boat.position.copy(currentTarget);
-        advanceToNextPoint();
-    } else {
-        // Move towards target
-        boat.position.addScaledVector(_dir, maxMove);
-        lookAtNextPoint();
+    // Position
+    boatCurve.getPoint(t, boat.position);
+
+    // Orientation
+    boatCurve.getTangent(t, _tmpTangent);
+    _tmpTangent.y = 0;
+    if (_tmpTangent.lengthSq() > 1e-6) {
+        _tmpTangent.normalize();
+        _tmpLookTarget.copy(boat.position).add(_tmpTangent);
+        boat.lookAt(_tmpLookTarget);
+        // model correction so its "forward" matches the math
+        boat.rotateY(-Math.PI / 2);
     }
 
-    return boat.position;        // <--- always return position if boat exists
+    // If you want to sample water height here, you still can:
+    // const y = sampleWaterHeight(boat.position.x, boat.position.z, displacementMap);
+    // boat.position.y = y;
+
+    return boat.position;
 }
-
-
-function advanceToNextPoint() {
-    currentIndex = nextIndex;
-    nextIndex = (nextIndex + 1) % points.length;
-    lookAtNextPoint();
-}
-
-export {
-    followDaBoat,
-    updateBoat,
-    BOAT_SPEED,
-    points
-};
 
 export function updateCameraFollow(boatPos, camera) {
     const isFollowing = Boolean(followDaBoat && boatPos);
@@ -288,7 +240,7 @@ export function updateCameraFollow(boatPos, camera) {
             old_camera_pos = camera.position.clone(); // clone only once when toggling
             justToggled = false;
         }
-        const {x, y, z} = boatPos;
+        const { x, y, z } = boatPos;
         camera.position.set(x, y + 18, z);
         return;
     }
